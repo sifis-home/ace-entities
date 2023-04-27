@@ -19,10 +19,13 @@ import se.sics.ace.ucs.properties.UcsPapProperties;
 import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 
 import java.io.*;
-//import java.security.Provider;
-//import java.security.Security;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -148,6 +151,7 @@ public class AceAS implements Callable<Integer> {
                 description = "Add a new Resource Server")
         boolean isResourceServer;
     }
+
     static class Args {
         @ArgGroup(exclusive = true, multiplicity = "1")
         Peer peer;
@@ -168,14 +172,15 @@ public class AceAS implements Callable<Integer> {
     private final static Map<String, String> peerNamesToIdentities = new HashMap<>();
     private final static Map<String, String> peerIdentitiesToNames = new HashMap<>();
     private final static Map<String, String> myIdentities = new HashMap<>();
-    private final static byte[] idContext = new byte[] {0x44};
+    private final static byte[] idContext = new byte[]{0x44};
 
     static String asName = "AS";
-    private final String asIdentity = buildOscoreIdentity(new byte[] {0x33}, idContext);
+    private final String asIdentity = buildOscoreIdentity(new byte[]{0x33}, idContext);
 
     private static Timer timer;
 
-    private static String attributeFilesPath = "src/main/resources/attributes/";
+    private static final File attributesDir = new File(getResourcePath(), "attributes");
+    private static final File policiesDir = new File(getResourcePath(), "policies");
 
     //--- MAIN
     public static void main(String[] args) {
@@ -188,9 +193,11 @@ public class AceAS implements Callable<Integer> {
     }
 
 
-
     @Override
     public Integer call() throws Exception {
+
+        Utils.createDir(attributesDir);
+        Utils.createDir(policiesDir);
 
         parseNumAttributes();
         parseResources();
@@ -206,8 +213,8 @@ public class AceAS implements Callable<Integer> {
 
         TrlConfig trlConfig = new TrlConfig("trl", 3, null, true);
 
-        as = new OscoreAS(asName, db, pdp, time, myAsymmKey,"token", "introspect", trlConfig,
-                CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
+        as = new OscoreAS(asName, db, pdp, time, myAsymmKey, "token", "introspect", trlConfig,
+                CoAP.DEFAULT_COAP_PORT, null, false, (short) 1, true,
                 peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
 
         as.start();
@@ -216,13 +223,14 @@ public class AceAS implements Callable<Integer> {
 
         timer = new Timer();
         timer.schedule(new AttributeChanger("thermometer-reachable.txt", "changedValue"),
-                30000 + (int)(Math.random() * 30000));
+                30000 + (int) (Math.random() * 30000));
 
         return 0;
     }
 
     /**
      * Stops the server
+     *
      * @throws Exception
      */
     public static void stop() throws Exception {
@@ -253,15 +261,19 @@ public class AceAS implements Callable<Integer> {
 
         List<Client> clients = new ArrayList<>();
         if (inputClients.isEmpty()) {
-            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList<String>(){{add(DEFAULT_CLIENT_SCOPE);}},
-                    new ArrayList<String>(){{add(DEFAULT_CLIENT_AUD);}}, DEFAULT_CLIENT_SENDER_ID,
+            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList<String>() {{
+                add(DEFAULT_CLIENT_SCOPE);
+            }},
+                    new ArrayList<String>() {{
+                        add(DEFAULT_CLIENT_AUD);
+                    }}, DEFAULT_CLIENT_SENDER_ID,
                     DEFAULT_CLIENT_MASTER_SECRET));
         }
         for (Args c : inputClients) {
-            clients.add(new Client( c.opt.name, c.opt.scope, c.opt.aud,
+            clients.add(new Client(c.opt.name, c.opt.scope, c.opt.aud,
                     c.opt.sId, c.opt.key));
         }
-        for(Client c : clients) {
+        for (Client c : clients) {
             setupClient(c);
         }
 
@@ -272,7 +284,7 @@ public class AceAS implements Callable<Integer> {
                     DEFAULT_RESOURCE_SERVER_SENDER_ID, DEFAULT_RESOURCE_SERVER_MASTER_SECRET,
                     DEFAULT_RESOURCE_SERVER_TOKEN_PSK));
         }
-        for (Args r: inputResourceServers) {
+        for (Args r : inputResourceServers) {
 
             // check that all the options have been specified
 
@@ -285,7 +297,7 @@ public class AceAS implements Callable<Integer> {
             resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope.get(0), r.opt.aud.get(0),
                     r.opt.sId, r.opt.key, r.opt.tokenKey));
         }
-        for (ResourceServer r: resourceServers) {
+        for (ResourceServer r : resourceServers) {
             setupResourceServer(r);
         }
 
@@ -314,12 +326,10 @@ public class AceAS implements Callable<Integer> {
     private void parseResources() {
         if (resources == null || resources.isEmpty()) {
             resources = DEFAULT_RESOURCES;
-        }
-        else {
+        } else {
             // validate input
         }
     }
-
 
     private void setupResourceServer(ResourceServer r) throws AceException {
 
@@ -329,6 +339,7 @@ public class AceAS implements Callable<Integer> {
         addIdentity(r.getName(), r.getsId());
         pdp.addIntrospectAccess(r.getName());
     }
+
     private void setupClient(Client c) throws AceException {
 
         db.addClient(c.getName(), c.getProfiles(), null, null,
@@ -349,10 +360,9 @@ public class AceAS implements Callable<Integer> {
 //                    if (res.equals("helloWorld") && numAttributes > 1) {
 //                        policySuffix = "_" + numAttributes + "_attributes";
 //                    }
-                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope,
-                            String.valueOf(AceAS.class.getClassLoader().getResource("policy-templates/policy_template_" + res + policySuffix)).replace("file:", ""));
-                }
-                else {
+                    String policyTemplate = readContent(accessFile("policy-templates/policy_template_" + res + policySuffix));
+                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);
+                } else {
                     pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
                 }
             }
@@ -396,14 +406,14 @@ public class AceAS implements Callable<Integer> {
             List<String> allowedResources = new ArrayList<>(Arrays.asList(resources.split(" ")));
 
             UcsPipReaderProperties pipReader = new UcsPipReaderProperties();
-            List<PipProperties> pipPropertiesList= new ArrayList<>();
+            List<PipProperties> pipPropertiesList = new ArrayList<>();
 
             if (allowedResources.contains("Temp")) {
                 pipReader.addAttribute(
                         "urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable",
                         Category.ENVIRONMENT.toString(),
                         DataType.STRING.toString(),
-                        String.valueOf(AceAS.class.getClassLoader().getResource("attributes/thermometer-reachable.txt")).replace("file:", ""));
+                        attributesDir.getAbsolutePath() + File.separator +  "thermometer-reachable.txt");
                 pipReader.setRefreshRate(10L);
                 pipPropertiesList.add(pipReader);
 
@@ -420,7 +430,7 @@ public class AceAS implements Callable<Integer> {
                         "urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable",
                         Category.ENVIRONMENT.toString(),
                         DataType.STRING.toString(),
-                        String.valueOf(AceAS.class.getClassLoader().getResource("attributes/hygrometer-reachable.txt")).replace("file:", ""));
+                        attributesDir.getAbsolutePath() + File.separator +  "hygrometer-reachable.txt");
                 pipPropertiesList.add(pipReader);
             }
 
@@ -430,7 +440,7 @@ public class AceAS implements Callable<Integer> {
                         "urn:oasis:names:tc:xacml:3.0:environment:screen-reachable",
                         Category.ENVIRONMENT.toString(),
                         DataType.STRING.toString(),
-                        String.valueOf(AceAS.class.getClassLoader().getResource("attributes/screen-reachable.txt")).replace("file:", ""));
+                        attributesDir.getAbsolutePath() + File.separator + "screen-reachable.txt");
                 pipPropertiesList.add(pipReader);
             }
 
@@ -440,7 +450,7 @@ public class AceAS implements Callable<Integer> {
                         "urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable",
                         Category.ENVIRONMENT.toString(),
                         DataType.STRING.toString(),
-                        String.valueOf(AceAS.class.getClassLoader().getResource("attributes/speaker-reachable.txt")).replace("file:", ""));
+                        attributesDir.getAbsolutePath() + File.separator +  "speaker-reachable.txt");
                 pipPropertiesList.add(pipReader);
             }
 
@@ -450,7 +460,7 @@ public class AceAS implements Callable<Integer> {
                         "urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel",
                         Category.ENVIRONMENT.toString(),
                         DataType.STRING.toString(),
-                        String.valueOf(AceAS.class.getClassLoader().getResource("attributes/welcome-led-panel.txt")).replace("file:", ""));
+                        attributesDir.getAbsolutePath() + File.separator + "welcome-led-panel.txt");
                 pipPropertiesList.add(pipReader);
             }
 
@@ -460,54 +470,88 @@ public class AceAS implements Callable<Integer> {
 //                    "urn:oasis:names:tc:xacml:1.0:subject:role",
 //                    Category.SUBJECT.toString(),
 //                    DataType.STRING.toString(),
-//                    String.valueOf(AceAS.class.getClassLoader().getResource("attributes/role.txt")).replace("file:", ""));
+//                    attributesDir.getAbsolutePath() + File.separator + "role.txt");
 //            pipPropertiesList.add(pipReader);
-
-
 
 //            for (int i = 2; i <= numAttributes; i++) {
 //                pipPropertiesList.add(preparePIPReader("attribute-helloWorld" + i));
 //            }
 
-            UcsPapProperties papProperties =
-                    new UcsPapProperties(String.valueOf(AceAS.class.getClassLoader().getResource("policies/")).replace("file:", ""));;
+            UcsPapProperties papProperties = new UcsPapProperties(policiesDir.getAbsolutePath());
 
-            pdp = new UcsHelper(db, pipPropertiesList, papProperties);
+            String policyTemplate = readContent(accessFile("policy-templates/policy_template"));
+
+            pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);
         }
+    }
+
+    public static InputStream accessFile(String fileName) {
+
+        // this is the path within the jar file
+        InputStream input = AceAS.class.getResourceAsStream("/resources/" + fileName);
+        if (input == null) {
+            // this is how we load file within editor
+            input = AceAS.class.getClassLoader().getResourceAsStream(fileName);
+        }
+
+        return input;
+    }
+
+    public static String getResourcePath() {
+
+        URL input = AceAS.class.getProtectionDomain().getCodeSource().getLocation();
+
+        try {
+            File myfile = new File(input.toURI());
+            File dir = myfile.getParentFile(); // strip off .jar file
+            return dir.getAbsolutePath();
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+    public String readContent(InputStream input) {
+        return new BufferedReader(
+                new InputStreamReader(input, StandardCharsets.UTF_8))
+                .lines()
+                .collect(Collectors.joining("\n"));
     }
 
     private void restoreAttributesValue() {
 
         // restore the value of the attributes
-        setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                .getResource("attributes/hygrometer-reachable.txt")).replace("file:", ""), "y");
+        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                + "hygrometer-reachable.txt", "y");
 
-        setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                .getResource("attributes/screen-reachable.txt")).replace("file:", ""), "y");
+        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                + "screen-reachable.txt", "y");
 
-        setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                .getResource("attributes/speaker-reachable.txt")).replace("file:", ""), "y");
+        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                + "speaker-reachable.txt", "y");
 
-        setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                .getResource("attributes/thermometer-reachable.txt")).replace("file:", ""), "y");
+        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                + "thermometer-reachable.txt", "y");
 
-        setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                .getResource("attributes/welcome-led-panel.txt")).replace("file:", ""), "Hi!");
+        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                + "welcome-led-panel.txt", "Hi!");
 
-//      setAttributeValue(String.valueOf(AceAS.class.getClassLoader().getResource(
-//              "attributes/role.txt")), "ClientB maintainer\n" +
-//              "ClientC developer\n" +
-//              "ClientA maintainer\n" +
-//              "ClientD admin");
+//        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+//                + "role.txt",
+//                "ClientB maintainer\n"
+//                        + "ClientC developer\n"
+//                        + "ClientA maintainer\n"
+//                        + "ClientD admin");
 
         for (int i = 2; i <= numAttributes; i++) {
-            setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-                    .getResource("attributes/attribute-temp" + i + ".txt")).replace("file:", ""), "y");
+            setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+                    + "attribute-temp" + i + ".txt", "y");
         }
 
 //        for (int i = 2; i <= numAttributes; i++) {
-//            setAttributeValue(String.valueOf(AceAS.class.getClassLoader()
-//            .getResource("attributes/attribute-helloWorld" + i + ".txt")).replace("file:", ""), "y");
+//            setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+//                    + "attribute-helloWorld" + i + ".txt", "y");
 //        }
     }
 
@@ -517,7 +561,7 @@ public class AceAS implements Callable<Integer> {
                 "urn:oasis:names:tc:xacml:3.0:environment:" + attribute,
                 Category.ENVIRONMENT.toString(),
                 DataType.STRING.toString(),
-                String.valueOf(AceAS.class.getClassLoader().getResource("attributes/" + attribute + ".txt")).replace("file:", ""));
+                attributesDir.getAbsolutePath() + File.separator + attribute + ".txt");
         return pipReader;
     }
 
@@ -550,8 +594,8 @@ public class AceAS implements Callable<Integer> {
         }
 
         public void run() {
-            File file = new File(String.valueOf(AceAS.class.getClassLoader()
-                    .getResource("attributes/" + this.fileName)).replace("file:", ""));
+            File file = new File(attributesDir.getAbsolutePath() + File.separator
+                    + this.fileName);
             FileWriter fw = null;
             try {
                 fw = new FileWriter(file);

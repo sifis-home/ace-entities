@@ -1,7 +1,9 @@
 package eu.sifishome;
 
 import picocli.CommandLine;
+import se.sics.ace.AceException;
 
+import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -58,5 +60,25 @@ public class Utils {
                     + Character.digit(s.charAt(i+1), 16));
         }
         return data;
+    }
+
+    public static boolean createDir(File dir) throws AceException {
+        if (dir.exists()) {
+            Utils.deleteDir(dir);
+        }
+        if (!dir.mkdir()) {
+            throw new AceException("Unable to create policies directory");
+        }
+        return true;
+    }
+
+    public static boolean deleteDir(File directoryToBeDeleted) {
+        File[] allContents = directoryToBeDeleted.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDir(file);
+            }
+        }
+        return directoryToBeDeleted.delete();
     }
 }
