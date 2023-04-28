@@ -50,7 +50,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${project.basedir}/lib</outputDirectory>
+                            <outputDirectory>${maven.multiModuleProjectDirectory}/apps/lib</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -60,10 +60,11 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
                 <configuration>
+                    <outputDirectory>${maven.multiModuleProjectDirectory}/apps/AceClient</outputDirectory>
                     <archive>
                         <manifest>
                             <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib/</classpathPrefix>
+                            <classpathPrefix>../lib/</classpathPrefix>
                             <mainClass>eu.sifishome.AceClient</mainClass>
                             <useUniqueVersions>false</useUniqueVersions>
                         </manifest>
