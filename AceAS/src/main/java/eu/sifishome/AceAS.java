@@ -179,8 +179,8 @@ public class AceAS implements Callable<Integer> {
 
     private static Timer timer;
 
-    private static final File attributesDir = new File(getResourcePath(), "attributes");
-    private static final File policiesDir = new File(getResourcePath(), "policies");
+    private static final File attributesDir = new File(Utils.getResourcePath(AceAS.class), "attributes");
+    private static final File policiesDir = new File(Utils.getResourcePath(AceAS.class), "policies");
 
     //--- MAIN
     public static void main(String[] args) {
@@ -360,7 +360,8 @@ public class AceAS implements Callable<Integer> {
 //                    if (res.equals("helloWorld") && numAttributes > 1) {
 //                        policySuffix = "_" + numAttributes + "_attributes";
 //                    }
-                    String policyTemplate = readContent(accessFile("policy-templates/policy_template_" + res + policySuffix));
+                    String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,
+                            "policy-templates" + File.separator + "policy_template_" + res + policySuffix));
                     ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);
                 } else {
                     pdp.addAccess(c.getName(), c.getAud().get(i), subScope);
@@ -479,44 +480,11 @@ public class AceAS implements Callable<Integer> {
 
             UcsPapProperties papProperties = new UcsPapProperties(policiesDir.getAbsolutePath());
 
-            String policyTemplate = readContent(accessFile("policy-templates/policy_template"));
+            String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,
+                    "policy-templates" + File.separator + "policy_template"));
 
             pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);
         }
-    }
-
-    public static InputStream accessFile(String fileName) {
-
-        // this is the path within the jar file
-        InputStream input = AceAS.class.getResourceAsStream("/resources/" + fileName);
-        if (input == null) {
-            // this is how we load file within editor
-            input = AceAS.class.getClassLoader().getResourceAsStream(fileName);
-        }
-
-        return input;
-    }
-
-    public static String getResourcePath() {
-
-        URL input = AceAS.class.getProtectionDomain().getCodeSource().getLocation();
-
-        try {
-            File myfile = new File(input.toURI());
-            File dir = myfile.getParentFile(); // strip off .jar file
-            return dir.getAbsolutePath();
-        } catch (URISyntaxException e) {
-            throw new RuntimeException(e);
-        }
-
-
-    }
-
-    public String readContent(InputStream input) {
-        return new BufferedReader(
-                new InputStreamReader(input, StandardCharsets.UTF_8))
-                .lines()
-                .collect(Collectors.joining("\n"));
     }
 
     private void restoreAttributesValue() {

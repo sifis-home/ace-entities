@@ -29,8 +29,8 @@ import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
+
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -54,8 +54,6 @@ import picocli.CommandLine.ParameterException;
  *
  */
 
-// todo (possible improvements):
-//  - better way to get the absolute path of Resources class?
 
 @Command(name = "r-server",
         mixinStandardHelpOptions = true,
@@ -224,8 +222,9 @@ public class AceRS implements Callable<Integer> {
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
-    static String tokenFile = String.valueOf(AceRS.class.getClassLoader().getResource("tokens.json"));
-    static String tokenHashesFile = String.valueOf(AceRS.class.getClassLoader().getResource("tokenhashes.json"));
+    static File writeDir = new File (Utils.getResourcePath(AceRS.class));
+    static String tokenFile = writeDir.getAbsolutePath() + File.separator + "tokens.json";
+    static String tokenHashesFile = writeDir.getAbsolutePath() + File.separator + "tokenhashes.json";
 
     static String asName = "AS";
     private static int rsCoapPort;
