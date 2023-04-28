@@ -1,34 +1,3 @@
-/*******************************************************************************
- * Copyright (c) 2019, RISE AB
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met:
- *
- * 1. Redistributions of source code must retain the above copyright notice, 
- *    this list of conditions and the following disclaimer.
- *
- * 2. Redistributions in binary form must reproduce the above copyright notice, 
- *    this list of conditions and the following disclaimer in the documentation 
- *    and/or other materials provided with the distribution.
- *
- * 3. Neither the name of the copyright holder nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
- * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
- * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
- * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *******************************************************************************/
 package eu.sifishome;
 
 import se.sics.ace.AceException;
@@ -47,7 +16,7 @@ import java.sql.SQLException;
 /**
  * Helper class to set up databases for tests.
  *
- * @author Sebastian Echeverria and Marco Tiloca
+ * @author Sebastian Echeverria and Marco Tiloca and Marco Rasori
  *
  */
 public class DBHelper
@@ -67,8 +36,8 @@ public class DBHelper
     /**
      * Sets up the DB using the current default adapter.
      * 
-     * @throws AceException 
-     * @throws IOException 
+     * @throws AceException if acting on the database fails
+     * @throws IOException if loading admin information fails
      */
     public static void setUpDB() throws AceException, IOException
     {
@@ -88,7 +57,7 @@ public class DBHelper
 
     /**
      * @return  the SQLConnector instance
-     * @throws SQLException
+     * @throws SQLException if an error occurs retrieving the database instance
      */
     public static SQLConnector getSQLConnector() throws SQLException
     {
@@ -98,7 +67,7 @@ public class DBHelper
 
     /**
      * @return the CoapDBConnector instance
-     * @throws SQLException
+     * @throws SQLException if an error occurs when retrieving the CoapDBConnector istance
      */
     public static CoapDBConnector getCoapDBConnector() throws SQLException
     {
@@ -108,7 +77,7 @@ public class DBHelper
 
     /**
      * Destroy the test DB with the default adapter.
-     * @throws AceException
+     * @throws AceException if an error occurs when wiping the database
      */
     public static void tearDownDB() throws AceException
     {
@@ -118,23 +87,20 @@ public class DBHelper
 
     /**
      * Loads the admin username and password form an external file.
-     * @throws IOException
+     * @throws IOException if an error occurs when retrieving the file with the credentials for the database
      */
     private static void loadAdminLoginInformation() throws IOException
     {
-        BufferedReader br = new BufferedReader(new FileReader(
-                Utils.getResourcePath(AceAS.class) + File.separator + "db.pwd"));
-        int readLines = 0;
-        try
-        {
+        try (BufferedReader br = new BufferedReader(new FileReader(
+                Utils.getResourcePath(AceAS.class) + File.separator + "db.pwd"))) {
+            int readLines = 0;
             StringBuilder sb = new StringBuilder();
             String line = br.readLine();
-            while (line != null && readLines < 2)
-            {
+            while (line != null && readLines < 2) {
                 sb.delete(0, sb.length());
                 sb.append(line);
                 sb.append(System.lineSeparator());
-                
+
                 if (readLines == 0) {
                     dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
                 }
@@ -144,10 +110,6 @@ public class DBHelper
                 readLines++;
                 line = br.readLine();
             }
-        }
-        finally
-        {
-            br.close();
         }
     }
 }
