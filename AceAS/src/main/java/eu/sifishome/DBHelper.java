@@ -39,6 +39,7 @@ import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.examples.SQLDBAdapter;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
@@ -116,12 +117,13 @@ public class DBHelper
     }
 
     /**
-     * Loads the admin username nad password form an external file.
+     * Loads the admin username and password form an external file.
      * @throws IOException
      */
     private static void loadAdminLoginInformation() throws IOException
     {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
+        BufferedReader br = new BufferedReader(new FileReader(
+                Utils.getResourcePath(AceAS.class) + File.separator + "db.pwd"));
         int readLines = 0;
         try
         {
@@ -129,15 +131,15 @@ public class DBHelper
             String line = br.readLine();
             while (line != null && readLines < 2)
             {
-            	sb.delete(0, sb.length());
+                sb.delete(0, sb.length());
                 sb.append(line);
                 sb.append(System.lineSeparator());
                 
                 if (readLines == 0) {
-                	dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
+                    dbAdminUser = sb.toString().replace(System.getProperty("line.separator"), "");
                 }
                 if (readLines == 1) {
-                	dbAdminPwd = sb.toString().replace(System.getProperty("line.separator"), "");
+                    dbAdminPwd = sb.toString().replace(System.getProperty("line.separator"), "");
                 }
                 readLines++;
                 line = br.readLine();
