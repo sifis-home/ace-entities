@@ -23,6 +23,7 @@
         <module>AceAS</module>
         <module>utils</module>
         <module>AceRS</module>
+        <module>AceClientDht</module>
     </modules>
 
     <repositories>
