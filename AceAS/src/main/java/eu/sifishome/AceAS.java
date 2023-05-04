@@ -223,7 +223,7 @@ public class AceAS implements Callable<Integer> {
 
         timer = new Timer();
         timer.schedule(new AttributeChanger("thermometer-reachable.txt", "changedValue"),
-                30000 + (int) (Math.random() * 30000));
+                30000);// + (int) (Math.random() * 30000));
 
         return 0;
     }
