@@ -1,6 +1,14 @@
 package eu.sifishome;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
 import com.upokecenter.cbor.CBORObject;
+import eu.sifishome.json.incoming.JsonIn;
+import eu.sifishome.json.outgoing.JsonOut;
+import eu.sifishome.json.outgoing.OutValue;
+import eu.sifishome.json.outgoing.RequestPubMessage;
+import jakarta.websocket.*;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -12,6 +20,7 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
+import org.glassfish.tyrus.client.ClientManager;
 import se.sics.ace.*;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.BasicTrlStore;
@@ -20,13 +29,14 @@ import se.sics.ace.coap.client.TrlResponses;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.rs.AsRequestCreationHints;
 
+import jakarta.websocket.OnMessage;
+
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -36,7 +46,6 @@ import picocli.CommandLine.Spec;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.ParameterException;
 
-import static java.lang.Thread.sleep;
 
 /**
  * Client to test with AceRS and AceAS
@@ -48,7 +57,8 @@ import static java.lang.Thread.sleep;
         mixinStandardHelpOptions = true,
         version = "1.0",
         description = "Runs an ACE Client.")
-public class AceClient implements Callable<Integer> {
+@ClientEndpoint
+public class AceClientDht implements Callable<Integer> {
 
     private final static String DEFAULT_ASURI = "localhost:" + CoAP.DEFAULT_COAP_PORT;
     private final static int DEFAULT_RS_PORT = 5685;
@@ -61,18 +71,24 @@ public class AceClient implements Callable<Integer> {
     private final static int DEFAULT_REQUEST_INTERVAL = 1;
     private final static String DEFAULT_SENDER_ID = "0x22";
     private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
+    private final static String DEFAULT_DHT_ADDRESS = "ws://localhost:3000/ws";
 
     @Spec
     CommandSpec spec;
 
-    @Option(names = {"-W", "--WarmUp"},
-            required = false,
-            description = "Enable warm up, i.e., the Client requests an additional token " +
-                    "before performance are recorded. Audience and scope are fixed to 'rs2' " +
-                    "and 'r_warmup', respectively.\n" +
-                    "Note that the AceAS must be initialized so that the Client has the privileges " +
-                    "for such audience and scope.")
-    public boolean isWarmUpEnabled = false;
+    static class DhtArgs {
+        @Option(names = {"-D", "--Dht"},
+                required = true,
+                description = "Enable DHT.\n")
+        boolean isDhtEnabled = false;
+
+        @Option(names = {"-w", "--websocketuri"},
+                required = false,
+                defaultValue = DEFAULT_DHT_ADDRESS,
+                description = "The URI of the websocket where the DHT process is listening.\n" +
+                        "(default: ${DEFAULT-VALUE})\n")
+        String dhtUri;
+    }
 
     @Option(names = {"-a", "--asuri"},
             required = false,
@@ -191,6 +207,7 @@ public class AceClient implements Callable<Integer> {
     static class Args {
         @ArgGroup(exclusive = true, multiplicity = "1") NotificationArgs notification;
         @ArgGroup(exclusive = false) TrlAddrArg trlAddrArg;
+        @ArgGroup(exclusive = false) DhtArgs dhtArg;
     }
 
     @ArgGroup(exclusive = false) Args args;
@@ -203,7 +220,7 @@ public class AceClient implements Callable<Integer> {
     private static OSCoreCtx ctx;
     private static OSCoreCtxDB ctxDB;
 
-    private static List<Set<Integer>> usedRecipientIds = new ArrayList<>();
+    private static final List<Set<Integer>> usedRecipientIds = new ArrayList<>();
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
@@ -217,12 +234,25 @@ public class AceClient implements Callable<Integer> {
 
     private String trlAddr;
 
-    private final Set<String> validTokens = new HashSet<>();
+    private final Map<String, TokenInfo> validTokensMap = new HashMap<>();
+
+    private CoapClient client4AS;
+
+    private boolean isDhtEnabled;
+    private String dhtAddr;
+
+    private final static String INPUT_TOPIC = "command_ace_ucs";
+    private final static String OUTPUT_TOPIC = "output_ace_ucs";
+
+    private ScheduledExecutorService executorService = null;
+
+    private final Set<Timer> expTasks = new HashSet<>();
+
 
     //--- MAIN
     public static void main(String[] args) {
 
-        int exitCode = new CommandLine(new AceClient()).execute(args);
+        int exitCode = new CommandLine(new AceClientDht()).execute(args);
         if (exitCode != 0) {
             System.exit(exitCode);
         }
@@ -248,9 +278,8 @@ public class AceClient implements Callable<Integer> {
             usedRecipientIds.add(new HashSet<>());
         }
 
-        CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
+        client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);
 
-        ScheduledExecutorService executorService = null;
         if (isPolling || isObserve) {
             TrlStore trlStore = new BasicTrlStore();
 
@@ -279,6 +308,10 @@ public class AceClient implements Callable<Integer> {
             if (requester == 0)
                 return 0;
         }
+//        while(true) {
+//            sleep(10000);
+////            System.out.print(".");
+//        }
         return 0;
     }
 
@@ -336,14 +369,14 @@ public class AceClient implements Callable<Integer> {
     public void purgeRevokedTokens(TrlStore trlStore) {
 
         Set<String> trl = trlStore.getLocalTrl();
-        Set<String> intersection = new HashSet<>(validTokens);
+        Set<String> intersection = new HashSet<>(validTokensMap.keySet());
         intersection.retainAll(trl);
 
-        synchronized (validTokens) {
+        synchronized (validTokensMap) {
             for (String th : intersection) {
-                validTokens.remove(th);
+                validTokensMap.remove(th);
             }
-            validTokens.notifyAll();
+            validTokensMap.notifyAll();
         }
     }
 
@@ -373,93 +406,86 @@ public class AceClient implements Callable<Integer> {
         @Override
         public Integer call() throws Exception {
 
-            int tokenCount = 0;
             TimeProvider time = new KissTime();
 
-            if (isWarmUpEnabled) {
-                System.out.println("\n[START] Warm up...");
-                // warm up. Ask and obtain a first token to have connections and
-                // structures initialized at the AceAS
-                Response asRes0;
-                try {
-                    asRes0 = getToken(client4AS, "rs2", "r_warmup");
-                } catch (AceException e) {
-                    System.out.println(e.getMessage());
-                    client4AS.shutdown();
-                    if (es != null) {
-                        //Shutting down the Executor Service for the Poller
-                        es.shutdown();
-                    }
-                    System.out.println("Warm up failed. Quitting.");
-                    return -1;
-                }
-                CBORObject resAs0 = CBORObject.DecodeFromBytes(asRes0.getPayload());
-                System.out.println("\nResponse from AS");
-                System.out.println("Response Code:       " + asRes0.getCode());
-                System.out.println("\n[END] Warm up]");
-                sleep(500L);
-            }
-
             while(true) {
-                String allowedScopes;
+
                 // 1. Get the token
-                Response asRes;
+                String tokenHash;
                 try {
-                    tokenCount ++;
-                    asRes = getToken(client4AS, aud, scope);
-                } catch (AceException e) {
-                    System.out.println(e.getMessage());
-                    client4AS.shutdown();
-                    if (es != null) {
-                        //Shutting down the Executor Service for the Poller
-                        es.shutdown();
-                    }
+                    tokenHash = getTokenIfNotPresent(aud, scope);
+                }
+                catch (AceException e) {
+                    //System.out.println("Token not issued: " + e.getMessage());
+                    shutdown();
                     System.out.println("Quitting.");
                     return -1;
                 }
-                CBORObject resAs = CBORObject.DecodeFromBytes(asRes.getPayload());
-                Map<Short, CBORObject> map = Constants.getParams(resAs);
-                System.out.println("\nResponse from AS");
-                System.out.println("Response Code:       " + asRes.getCode());
 
-                String tokenHash = Util.computeTokenHash(map.get(Constants.ACCESS_TOKEN));
-                validTokens.add(tokenHash);
-                allowedScopes =
-                        map.get(Constants.SCOPE) == null ? scope : map.get(Constants.SCOPE).AsString();
+                // FIXME (when ACE library implements this)
+                // since the AS-to-Client response, at the moment, does not include neither EXI nor EXP,
+                // we use a hardcoded value.
+
+                // Flow: try to extract EXP.
+                //       If it works, set timeToExpire = EXP - currentTime;
+                //       If it fails, extract EXI and set timeToExpire = EXI;
+                //       Post the token.
+                long timeToExpire = 86400000L;
+
+                Timer timer = new Timer();
+                timer.schedule(new ExpirationTask(tokenHash, validTokensMap), timeToExpire);
+                expTasks.add(timer);
 
                 // 2. Post the token
                 try {
-                    postToken(rsAddr, asRes, map);
+                    postTokenIfNotPosted(tokenHash, rsAddr);
                 } catch (AceException e) {
-                    System.out.println(e.getMessage());
-                    client4AS.shutdown();
+                    //System.out.println("Token not posted: " +e.getMessage());
+                    //client4AS.shutdown();
+                    client4RS.shutdown();
+                    shutdown();
                     System.out.println("Quitting.");
                     return -1;
                 }
+
+////                String tokenHash;
+//                try {
+//                    tokenHash = getTokenAndUpdateValidTokens(aud, scope, es);
+//                } catch (AceException e) {
+//                    System.out.println("Token not issued: " + e.getMessage());
+//                    return -1;
+//                }
+// //               TokenInfo tokenInfo = validTokensMap.get(tokenHash);
+//
+//                // 2. Post the token
+//                try {
+//                    boolean isPosted = postToken(rsAddr, tokenInfo.getAsResponse(),
+//                            Constants.getParams(CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload())));
+//                    tokenInfo.setPosted(isPosted);
+//                } catch (AceException e) {
+//                    System.out.println(e.getMessage());
+//                    client4AS.shutdown();
+//                    System.out.println("Quitting.");
+//                    return -1;
+//                }
 
                 OSCOREProfileRequests.setClient(client4RS, ctxDB);
 
                 // 3. Make GET requests to access the resources
-                List<String> resources = new ArrayList<>(Arrays.asList(allowedScopes.split(" ")));
+                List<String> resources = new ArrayList<>(
+                        Arrays.asList(validTokensMap.get(tokenHash).getScope().split(" ")));
+
                 resources.replaceAll(s1 -> s1.substring(s1.indexOf("_") + 1));
 
                 int i = 0;
-                while (denialsCount < denials && validTokens.contains(tokenHash)) {
+                while (denialsCount < denials && validTokensMap.containsKey(tokenHash)) {
                     boolean isSuccess = getResource(client4RS, rsAddr + "/" + resources.get(i));
-                    if (isSuccess && tokenCount == 2) {
-                        client4AS.shutdown();
-                        if (es != null) {
-                            //Shutting down the Executor Service for the Poller
-                            es.shutdown();
-                        }
-                        System.out.println("Test ended successfully.");
-                        return 0;
-                    }
+
                     if (!isSuccess) {
                         denialsCount++;
                         if (denialsCount == denials) {
                             System.out.println("Too many denials.");
-                            validTokens.remove(tokenHash); // assume the token is not valid anymore
+                            validTokensMap.remove(tokenHash); // assume the token is not valid anymore
                             break;
                         }
                     }
@@ -468,16 +494,16 @@ public class AceClient implements Callable<Integer> {
                     // wait 'requestInterval' before making another request,
                     // or wake up and ignore the remaining time if the
                     // current tokenhash has been removed from the variable
-                    // validToken
+                    // validTokensMap
                     long curTime = time.getCurrentTime();
                     long deadline = curTime + requestInterval * 1000L;
 
                     while (time.getCurrentTime() < deadline) {
                         long timeout = deadline - time.getCurrentTime();
-                        synchronized (validTokens) {
-                            validTokens.wait(timeout);
-                            if (!validTokens.contains(tokenHash)) {
-                                System.out.println("Learnt that the token was revoked");
+                        synchronized (validTokensMap) {
+                            validTokensMap.wait(timeout);
+                            if (!validTokensMap.containsKey(tokenHash)) {
+                                System.out.println("Learnt that the token is not valid anymore");
                                 break;
                             }
                         }
@@ -505,7 +531,7 @@ public class AceClient implements Callable<Integer> {
     }
 
 
-    public void postToken(String rsUri, Response asRes, Map<Short, CBORObject> map) throws AceException, OSException {
+    public boolean postToken(String rsUri, Response asRes, Map<Short, CBORObject> map) throws AceException, OSException {
         // 2. Post the Access Token to the /authz-info endpoint at the RS
         if (map.containsKey(Constants.CNF)) {
             Response rsRes = OSCOREProfileRequests.postToken(
@@ -527,6 +553,7 @@ public class AceClient implements Callable<Integer> {
                 throw new AceException("Failure response received from the RS (posting token update)");
             }
         }
+        return true;
     }
 
 
@@ -627,6 +654,283 @@ public class AceClient implements Callable<Integer> {
             trlAddr = this.args.trlAddrArg.trlAddress;
         } catch (NullPointerException e) {
             trlAddr = DEFAULT_TRL_ADDR;
+        }
+        try {
+            isDhtEnabled = this.args.dhtArg.isDhtEnabled;
+            if (isDhtEnabled) {
+                try {
+                    dhtAddr = this.args.dhtArg.dhtUri;
+                } catch (NullPointerException e) {
+                    dhtAddr = DEFAULT_DHT_ADDRESS;
+                }
+            }
+        } catch (NullPointerException e) {
+            isDhtEnabled = false;
+            dhtAddr = DEFAULT_DHT_ADDRESS;
+        }
+        if (isDhtEnabled) {
+            ClientManager dhtClient = ClientManager.createClient();
+            try {
+                URI uri = new URI(dhtAddr);
+                dhtClient.asyncConnectToServer(this, uri);
+            } catch (DeploymentException | URISyntaxException e) {
+                System.err.println("Error: Failed to connect to DHT");
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @OnOpen
+    public void onOpen(Session session) {
+        System.out.println("[DHT] - Connected " + session.getId());
+    }
+
+    @OnClose
+    public void onClose(Session session, CloseReason closeReason) {
+        System.out.println("[DHT] - Session " + session.getId() + " closed because " + closeReason);
+    }
+
+
+    @OnMessage
+    public String onMessage(String message, Session session) throws AceException, OSException, ConnectorException, IOException {
+        // Topic to listen for messages on
+        //String topic = "command_ace_ucs";
+
+//        System.out.println("[DHT] - Someone just published on the DHT");
+        System.out.println(message);
+
+        // Parse incoming JSON string from DHT
+        JsonIn parsed;
+        String topicField;
+        try {
+            parsed = new Gson().fromJson(message, JsonIn.class);
+            topicField = parsed.getVolatile().getValue().getTopic();
+        }
+        catch (JsonSyntaxException | NullPointerException e) {
+//            System.out.println("[DHT] - Unable to parse JSON. " +
+//                    "Its JSON schema either differs from the expected one, " +
+//                    "or the JSON is malformed.");
+            return null;
+        }
+
+        // Check if the topic name matches
+        if (!topicField.equals(INPUT_TOPIC)) {
+            System.out.println("[DHT] - Message discarded. " +
+                    "The topics does not match (\"" + topicField + "\" != \"" + INPUT_TOPIC + "\")");
+            return null;
+        }
+        System.out.println("[DHT] - The topic matches the one the Client is interested in (\"" + INPUT_TOPIC + "\")");
+
+        String scopeField = parsed.getVolatile().getValue().getMessage().getScope();
+        String audienceField = parsed.getVolatile().getValue().getMessage().getAudience();
+        String addressField = parsed.getVolatile().getValue().getMessage().getAddress();
+
+//        boolean isTokenPresent = false;
+//        boolean isTokenPosted = false;
+//        String tokenHash = null;
+//
+//        for (Map.Entry<String, TokenInfo> pair : validTokensMap.entrySet()) {
+//            if (pair.getValue().getScope().contains(scopeField)
+//                    && pair.getValue().getAudience().contains(audienceField)) {
+//                isTokenPresent = true;
+//                isTokenPosted = pair.getValue().isPosted();
+//                tokenHash = pair.getKey();
+//                System.out.println("TOKEN ALREADY PRESENT");
+//                break;
+//            }
+//            System.out.println("TOKEN NOT PRESENT");
+//        }
+//
+//        if (!isTokenPresent) {
+//            // get a new token
+//            tokenHash = getTokenAndUpdateValidTokens(audienceField, scopeField, null);
+//        }
+//        TokenInfo tokenInfo = validTokensMap.get(tokenHash);
+//
+//        if (!isTokenPosted) {
+//            // post the token
+//            Map<Short, CBORObject> map = Constants.getParams(
+//                    CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload()));
+//            tokenInfo.setPosted(
+//                    postToken(addressField, tokenInfo.getAsResponse(), map));
+//        }
+
+        String tokenHash;
+        try {
+            // 1. get the token
+            tokenHash = getTokenIfNotPresent(audienceField, scopeField);
+            // 2. post the token
+            postTokenIfNotPosted(tokenHash, addressField);
+        } catch (AceException e) {
+            System.out.println(e.getMessage());
+            return null;
+        }
+
+        TokenInfo tokenInfo = validTokensMap.get(tokenHash);
+
+        CoapClient client4RS = new CoapClient(addressField);
+        OSCOREProfileRequests.setClient(client4RS, ctxDB);
+
+        // extract the resources from the scope
+        List<String> resources = new ArrayList<>(
+                Arrays.asList(tokenInfo.getScope().split(" ")));
+        resources.replaceAll(s1 -> s1.substring(s1.indexOf("_") + 1));
+
+        // make a request for each resource and publish the result on the DHT
+        List<String> responses = new ArrayList<>();
+        for (String res : resources) {
+            String resourceUri = addressField + "/" + res;
+            CoapResponse response =
+                    doGetRequest(client4RS, resourceUri);
+            responses.add("Response from " + resourceUri + " : [" + response.toString() + "]");
+        }
+
+        // build a single string containing all the responses
+        String responseString = String.join(", ", responses);
+
+        // Build outgoing JSON to DHT
+        JsonOut outgoing = new JsonOut();
+        RequestPubMessage pubMsg = new RequestPubMessage();
+        OutValue outVal = new OutValue();
+        outVal.setTopic(OUTPUT_TOPIC);
+        outVal.setMessage(responseString);
+        pubMsg.setValue(outVal);
+        outgoing.setRequestPubMessage(pubMsg);
+
+        String jsonOut = new GsonBuilder().disableHtmlEscaping().create().toJson(outgoing);
+
+        System.out.println("[DHT] - Outgoing JSON: " + jsonOut);
+
+        // publish the json on the DHT
+        return jsonOut;
+    }
+
+    /**
+     * Ask the Access Token to the AS.
+     * If the Access Token is obtained, compute its tokenhash,
+     * and save information about it in a TokenInfo structure.
+     * Also, save in the map validTokensMap the tokenHash and the TokenInfo.
+     *
+     * @param aud the audience asked
+     * @param scope the scope asked
+     * @return the tokenhash of the issued token
+     * @throws AceException if some error occurs requesting the token,
+     *                      computing the hash, or extracting the parameters
+     *                      from the AS response
+     */
+    public String getTokenAndUpdateValidTokens(String aud, String scope) throws AceException {
+
+        // get the token
+        Response asRes;
+        try {
+            asRes = getToken(client4AS, aud, scope);
+        } catch (AceException | OSException e) {
+            throw new AceException("Error getting token: " + e.getMessage());
+        }
+//            System.out.println(e.getMessage());
+//            client4AS.shutdown();
+//            if (es != null) {
+//                //Shutting down the Executor Service for the Poller
+//                es.shutdown();
+//            }
+//            System.out.println("Quitting.");
+//            throw new AceException(e.getMessage());
+//        }
+
+        // extract the payload of the response
+        CBORObject resAs = CBORObject.DecodeFromBytes(asRes.getPayload());
+
+        // convert the CBOR object into a map
+        Map<Short, CBORObject> map = Constants.getParams(resAs);
+
+        // print the response
+        System.out.println("\nResponse from AS");
+        System.out.println("Response Code:       " + asRes.getCode());
+
+        // compute the tokenhash
+        String tokenHash = Util.computeTokenHash(map.get(Constants.ACCESS_TOKEN));
+
+        // extract the scope for which this token has been issued
+        String allowedScopes =
+                map.get(Constants.SCOPE) == null ? scope : map.get(Constants.SCOPE).AsString();
+
+        // Create a TokenInfo and add it to the validTokensMap
+        validTokensMap.put(tokenHash, new TokenInfo(aud, allowedScopes, asRes, false));
+        return tokenHash;
+    }
+
+    /**
+     * Check if a token for the given audience and scope is already present among
+     * the valid tokens. If not, ask for a new token to the AS.
+     * In either case, return the tokenHash of the token, which can be used as key
+     * in the validTokensMap to retrieve additional information.
+     *
+     * @param audience the audience
+     * @param scope the scope
+     * @return the tokenhash of a token valid for that audience and scope
+     * @throws AceException if an error occurs getting the token
+     */
+    private String getTokenIfNotPresent(String audience, String scope) throws AceException {
+        boolean isTokenPresent = false;
+        String tokenHash = null;
+
+        for (Map.Entry<String, TokenInfo> pair : validTokensMap.entrySet()) {
+            if (pair.getValue().getScope().contains(scope)
+                    && pair.getValue().getAudience().contains(audience)) {
+                isTokenPresent = true;
+                tokenHash = pair.getKey();
+                System.out.println("TOKEN ALREADY PRESENT");
+                break;
+            }
+            System.out.println("TOKEN NOT PRESENT");
+        }
+
+        if (!isTokenPresent) {
+            // get a new token
+            tokenHash = getTokenAndUpdateValidTokens(audience, scope);
+        }
+        return tokenHash;
+    }
+
+    /**
+     * Check if the token identified by the provided tokenhash has been already posted.
+     * If so, do nothing. Otherwise, post the token at the provided address
+     *
+     * @param tokenHash the tokenhash of the token to check and optionally post
+     * @param address the address of the resource server
+     * @throws AceException if an error occurs retrieving the actual token or posting the token
+     */
+    private void postTokenIfNotPosted(String tokenHash, String address) throws AceException {
+        TokenInfo tokenInfo = validTokensMap.get(tokenHash);
+        boolean isTokenPosted = tokenInfo.isPosted();
+
+        if (!isTokenPosted) {
+            // post the token
+            Map<Short, CBORObject> map;
+            try {
+                map = Constants.getParams(
+                        CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload()));
+            }
+            catch (AceException e ) {
+                throw new AceException("Error retrieving the token from valid tokens: " + e.getMessage());
+            }
+            try {
+                tokenInfo.setPosted(
+                        postToken(address, tokenInfo.getAsResponse(), map));
+            }
+            catch (OSException e) {
+                throw new AceException("Error posting the token: " + e.getMessage());
+            }
+        }
+    }
+
+    private void shutdown() {
+        if (client4AS != null)
+            client4AS.shutdown();
+        if (executorService != null)
+            executorService.shutdown();
+        for (Timer timer : expTasks) {
+            timer.cancel();
         }
     }
 }
