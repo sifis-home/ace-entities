@@ -1,9 +1,5 @@
 package eu.sifishome.json.outgoing;
 
-// https://json2csharp.com/
-// Root myDeserializedClass = JsonConvert.DeserializeObject<Root>(myJsonResponse);
-// {"RequestPubMessage":{"value":{"message":"hi","topic":"output_ed"}}}
-
 public class OutValue {
 
 	private String message;

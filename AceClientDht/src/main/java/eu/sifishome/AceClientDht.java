@@ -49,6 +49,7 @@ import picocli.CommandLine.ParameterException;
 
 /**
  * Client to test with AceRS and AceAS
+ * This client implements the connection to the DHT through websockets
  *
  * @author Marco Rasori
  */
@@ -308,10 +309,7 @@ public class AceClientDht implements Callable<Integer> {
             if (requester == 0)
                 return 0;
         }
-//        while(true) {
-//            sleep(10000);
-////            System.out.print(".");
-//        }
+
         return 0;
     }
 
@@ -447,27 +445,6 @@ public class AceClientDht implements Callable<Integer> {
                     System.out.println("Quitting.");
                     return -1;
                 }
-
-////                String tokenHash;
-//                try {
-//                    tokenHash = getTokenAndUpdateValidTokens(aud, scope, es);
-//                } catch (AceException e) {
-//                    System.out.println("Token not issued: " + e.getMessage());
-//                    return -1;
-//                }
-// //               TokenInfo tokenInfo = validTokensMap.get(tokenHash);
-//
-//                // 2. Post the token
-//                try {
-//                    boolean isPosted = postToken(rsAddr, tokenInfo.getAsResponse(),
-//                            Constants.getParams(CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload())));
-//                    tokenInfo.setPosted(isPosted);
-//                } catch (AceException e) {
-//                    System.out.println(e.getMessage());
-//                    client4AS.shutdown();
-//                    System.out.println("Quitting.");
-//                    return -1;
-//                }
 
                 OSCOREProfileRequests.setClient(client4RS, ctxDB);
 
@@ -693,11 +670,6 @@ public class AceClientDht implements Callable<Integer> {
 
     @OnMessage
     public String onMessage(String message, Session session) throws AceException, OSException, ConnectorException, IOException {
-        // Topic to listen for messages on
-        //String topic = "command_ace_ucs";
-
-//        System.out.println("[DHT] - Someone just published on the DHT");
-        System.out.println(message);
 
         // Parse incoming JSON string from DHT
         JsonIn parsed;
@@ -724,36 +696,6 @@ public class AceClientDht implements Callable<Integer> {
         String scopeField = parsed.getVolatile().getValue().getMessage().getScope();
         String audienceField = parsed.getVolatile().getValue().getMessage().getAudience();
         String addressField = parsed.getVolatile().getValue().getMessage().getAddress();
-
-//        boolean isTokenPresent = false;
-//        boolean isTokenPosted = false;
-//        String tokenHash = null;
-//
-//        for (Map.Entry<String, TokenInfo> pair : validTokensMap.entrySet()) {
-//            if (pair.getValue().getScope().contains(scopeField)
-//                    && pair.getValue().getAudience().contains(audienceField)) {
-//                isTokenPresent = true;
-//                isTokenPosted = pair.getValue().isPosted();
-//                tokenHash = pair.getKey();
-//                System.out.println("TOKEN ALREADY PRESENT");
-//                break;
-//            }
-//            System.out.println("TOKEN NOT PRESENT");
-//        }
-//
-//        if (!isTokenPresent) {
-//            // get a new token
-//            tokenHash = getTokenAndUpdateValidTokens(audienceField, scopeField, null);
-//        }
-//        TokenInfo tokenInfo = validTokensMap.get(tokenHash);
-//
-//        if (!isTokenPosted) {
-//            // post the token
-//            Map<Short, CBORObject> map = Constants.getParams(
-//                    CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload()));
-//            tokenInfo.setPosted(
-//                    postToken(addressField, tokenInfo.getAsResponse(), map));
-//        }
 
         String tokenHash;
         try {
@@ -827,15 +769,6 @@ public class AceClientDht implements Callable<Integer> {
         } catch (AceException | OSException e) {
             throw new AceException("Error getting token: " + e.getMessage());
         }
-//            System.out.println(e.getMessage());
-//            client4AS.shutdown();
-//            if (es != null) {
-//                //Shutting down the Executor Service for the Poller
-//                es.shutdown();
-//            }
-//            System.out.println("Quitting.");
-//            throw new AceException(e.getMessage());
-//        }
 
         // extract the payload of the response
         CBORObject resAs = CBORObject.DecodeFromBytes(asRes.getPayload());
