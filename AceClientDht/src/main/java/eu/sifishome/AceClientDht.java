@@ -73,12 +73,13 @@ public class AceClientDht implements Callable<Integer> {
     private final static String DEFAULT_SENDER_ID = "0x22";
     private final static String DEFAULT_MASTER_SECRET = "ClientA-AS-MS---";
     private final static String DEFAULT_DHT_ADDRESS = "ws://localhost:3000/ws";
-
+    private final static String DEFAULT_INCOMING_TOPIC = "command_ace_ucs";
+    private final static String DEFAULT_OUTGOING_TOPIC = "output_ace_ucs";
     @Spec
     CommandSpec spec;
 
     static class DhtArgs {
-        @Option(names = {"-D", "--Dht"},
+        @Option(names = {"-D", "--dht"},
                 required = true,
                 description = "Enable DHT.\n")
         boolean isDhtEnabled = false;
@@ -89,6 +90,20 @@ public class AceClientDht implements Callable<Integer> {
                 description = "The URI of the websocket where the DHT process is listening.\n" +
                         "(default: ${DEFAULT-VALUE})\n")
         String dhtUri;
+
+        @Option(names = {"-I", "--incomingtopic"},
+                required = false,
+                defaultValue = DEFAULT_INCOMING_TOPIC,
+                description = "The topic this client is subscribed to.\n" +
+                        "(default: ${DEFAULT-VALUE})\n")
+        private String incomingTopic;
+
+        @Option(names = {"-O", "--outgoingtopic"},
+                required = false,
+                defaultValue = DEFAULT_OUTGOING_TOPIC,
+                description = "The topic this client published on.\n" +
+                        "(default: ${DEFAULT-VALUE})\n")
+        private String outgoingTopic;
     }
 
     @Option(names = {"-a", "--asuri"},
@@ -241,10 +256,8 @@ public class AceClientDht implements Callable<Integer> {
 
     private boolean isDhtEnabled;
     private String dhtAddr;
-
-    private final static String INPUT_TOPIC = "command_ace_ucs";
-    private final static String OUTPUT_TOPIC = "output_ace_ucs";
-
+    private String incomingTopic;
+    private String outgoingTopic;
     private ScheduledExecutorService executorService = null;
 
     private final Set<Timer> expTasks = new HashSet<>();
@@ -632,6 +645,8 @@ public class AceClientDht implements Callable<Integer> {
         } catch (NullPointerException e) {
             trlAddr = DEFAULT_TRL_ADDR;
         }
+
+        // parse DHT arguments
         try {
             isDhtEnabled = this.args.dhtArg.isDhtEnabled;
             if (isDhtEnabled) {
@@ -640,10 +655,22 @@ public class AceClientDht implements Callable<Integer> {
                 } catch (NullPointerException e) {
                     dhtAddr = DEFAULT_DHT_ADDRESS;
                 }
+                try {
+                    incomingTopic = this.args.dhtArg.incomingTopic;
+                } catch (NullPointerException e) {
+                    incomingTopic = DEFAULT_INCOMING_TOPIC;
+                }
+                try {
+                    outgoingTopic = this.args.dhtArg.outgoingTopic;
+                } catch (NullPointerException e) {
+                    outgoingTopic = DEFAULT_OUTGOING_TOPIC;
+                }
             }
         } catch (NullPointerException e) {
             isDhtEnabled = false;
             dhtAddr = DEFAULT_DHT_ADDRESS;
+            incomingTopic = DEFAULT_INCOMING_TOPIC;
+            outgoingTopic = DEFAULT_OUTGOING_TOPIC;
         }
         if (isDhtEnabled) {
             ClientManager dhtClient = ClientManager.createClient();
@@ -686,12 +713,12 @@ public class AceClientDht implements Callable<Integer> {
         }
 
         // Check if the topic name matches
-        if (!topicField.equals(INPUT_TOPIC)) {
+        if (!topicField.equals(incomingTopic)) {
             System.out.println("[DHT] - Message discarded. " +
-                    "The topics does not match (\"" + topicField + "\" != \"" + INPUT_TOPIC + "\")");
+                    "The topics does not match (\"" + topicField + "\" != \"" + incomingTopic + "\")");
             return null;
         }
-        System.out.println("[DHT] - The topic matches the one the Client is interested in (\"" + INPUT_TOPIC + "\")");
+        System.out.println("[DHT] - The topic matches the one the Client is interested in (\"" + incomingTopic + "\")");
 
         String scopeField = parsed.getVolatile().getValue().getMessage().getScope();
         String audienceField = parsed.getVolatile().getValue().getMessage().getAudience();
@@ -734,7 +761,7 @@ public class AceClientDht implements Callable<Integer> {
         JsonOut outgoing = new JsonOut();
         RequestPubMessage pubMsg = new RequestPubMessage();
         OutValue outVal = new OutValue();
-        outVal.setTopic(OUTPUT_TOPIC);
+        outVal.setTopic(outgoingTopic);
         outVal.setMessage(responseString);
         pubMsg.setValue(outVal);
         outgoing.setRequestPubMessage(pubMsg);
