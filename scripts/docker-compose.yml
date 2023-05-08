@@ -1,0 +1,64 @@
+version: "3.9"
+
+services:
+  # ACE Authorization Server (AS)
+  ace-authorization-server:
+    image: ghcr.io/sifis-home/ace-authorization-server:latest
+    entrypoint: ["java", "-jar", "AceAS/AceAS-0.1.0.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    expose:
+      - "5683/udp"
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+      domo-dht-manager:
+        condition: service_healthy
+
+  # ACE Resource Server (AS)
+  ace-resource-server:
+    image: ghcr.io/sifis-home/ace-resource-server:latest
+    entrypoint: ["java", "-jar", "AceRS/AceRS-0.1.0.jar", "-o"]
+    expose:
+      - "5685/udp"
+
+  # ACE Client
+  ace-client:
+    image: ghcr.io/sifis-home/ace-client:latest
+    entrypoint: ["java", "-jar", "AceClient-0.1.0.jar", "-o"]
+    depends_on:
+      domo-dht-manager:
+        condition: service_healthy  
+
+  # ACE Client DHT
+  ace-client-dht:
+    image: ghcr.io/sifis-home/ace-client-dht:latest
+    entrypoint: ["java", "-jar", "AceClientDht-0.1.0.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    depends_on:
+      domo-dht-manager:
+        condition: service_healthy  
+
+  # MySQL server needed for AS. ####The AS -db parameter contents matches the MySQL server config.
+  mysql-db:
+    image: mysql:8.0.32
+    environment:
+      - MYSQL_ROOT_PASSWORD=xxxxxx
+    expose:
+      - "3306/tcp"
+    healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:3306"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+
+  # The DHT. The AS uses it for logging. The clients use it to receive commands and relay back responses from the server(s).
+  domo-dht-manager:
+    image: domo-dht-manager
+    entrypoint: ["/domo-dht-manager", "/db.sqlite", "true", "5a52aafb2a44ff5c360d4dc04e4a792e28637da07b96072a2f0a5ea5286f2739", "3000", "true"]
+    expose:
+      - "3000/tcp"
+    ports:
+      - 3000:3000/tcp
+    healthcheck:
+      test: timeout 20s bash -c ':> /dev/tcp/127.0.0.1/3000'
+      interval: 30s
+      timeout: 10s
+      retries: 5
