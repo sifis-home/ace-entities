@@ -8,7 +8,7 @@ set -e
 
 ## Build the Jar files for the ACE entities, if needed
 # the package phase will make a folder for each entity in the 'apps' folder
-FILE=apps/AceAS/AceAS-0.1.0.jar
+FILE=apps/AceAS/AceAS.jar
 if [ -f "$FILE" ]; then
     echo "$FILE exists."
 else
@@ -54,11 +54,10 @@ cp ../Dockerfile.base $dockerfile
 echo 'RUN mkdir -p /apps/AceAS' >> $dockerfile
 echo 'EXPOSE 5683/udp' >> $dockerfile
 echo 'ADD db.pwd /apps/AceAS' >> $dockerfile
-JAR_FILE=`ls ./AceAS/AceAS*.jar | head -1`
-echo "ADD $JAR_FILE /apps/AceAS" >> $dockerfile
+echo "ADD AceAS/AceAS.jar /apps/AceAS" >> $dockerfile
 echo 'ADD lib /apps/lib/' >> $dockerfile
 echo '' >> $dockerfile
-echo "ENTRYPOINT [\"java\", \"-jar\", \"$JAR_FILE\", \"-D\"]" >> $dockerfile
+echo 'ENTRYPOINT ["java", "-jar", "AceAS/AceAS.jar", "-D"]' >> $dockerfile
 
 if [ "$1" == "--build-images" ]
 then
@@ -71,11 +70,10 @@ dockerfile=Dockerfile-AceRS
 cp ../Dockerfile.base $dockerfile
 echo 'RUN mkdir -p /apps/AceRS' >> $dockerfile
 echo 'EXPOSE 5685/udp' >> $dockerfile
-JAR_FILE=`ls AceRS/AceRS*.jar | head -1`
-echo "ADD $JAR_FILE /apps/AceRS" >> $dockerfile
+echo "ADD AceRS/AceRS.jar /apps/AceRS" >> $dockerfile
 echo 'ADD lib /apps/lib/' >> $dockerfile
 echo '' >> $dockerfile
-echo "ENTRYPOINT [\"java\", \"-jar\", \"$JAR_FILE\", \"-o\"]" >> $dockerfile
+echo 'ENTRYPOINT ["java", "-jar", "AceRS/AceRS.jar", "-o"]' >> $dockerfile
 
 if [ "$1" == "--build-images" ]
 then
@@ -87,11 +85,10 @@ fi
 dockerfile=Dockerfile-AceClient
 cp ../Dockerfile.base $dockerfile
 echo 'RUN mkdir -p /apps/AceClient' >> $dockerfile
-JAR_FILE=`ls AceClient/AceClient*.jar | head -1`
-echo "ADD $JAR_FILE /apps/AceClient" >> $dockerfile
+echo "ADD AceClient/AceClient.jar /apps/AceClient" >> $dockerfile
 echo 'ADD lib /apps/lib/' >> $dockerfile
 echo '' >> $dockerfile
-echo "ENTRYPOINT [\"java\", \"-jar\", \"$JAR_FILE\", \"-o\"]" >> $dockerfile
+echo 'ENTRYPOINT ["java", "-jar", "AceClient/AceClient.jar", "-o"]' >> $dockerfile
 
 if [ "$1" == "--build-images" ]
 then
@@ -103,11 +100,11 @@ fi
 dockerfile=Dockerfile-AceClientDht
 cp ../Dockerfile.base $dockerfile
 echo 'RUN mkdir -p /apps/AceClientDht' >> $dockerfile
-JAR_FILE=`ls AceClientDht/AceClientDht*.jar | head -1`
-echo "ADD $JAR_FILE /apps/AceClientDht" >> $dockerfile
+echo "ADD AceClientDht/AceClientDht.jar /apps/AceClientDht" >> $dockerfile
 echo 'ADD lib /apps/lib/' >> $dockerfile
 echo '' >> $dockerfile
-echo "ENTRYPOINT [\"java\", \"-jar\", \"$JAR_FILE\", \"-D\"]" >> $dockerfile
+echo 'ENTRYPOINT ["java", "-jar", "AceClientDht/AceClientDht.jar", "-D"]' >> $dockerfile
+
 
 if [ "$1" == "--build-images" ]
 then

@@ -4,7 +4,7 @@ services:
   # ACE Authorization Server (AS)
   ace-authorization-server:
     image: ghcr.io/sifis-home/ace-authorization-server:latest
-    entrypoint: ["java", "-jar", "AceAS/AceAS-0.1.0.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    entrypoint: ["java", "-jar", "AceAS/AceAS.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
     expose:
       - "5683/udp"
     depends_on:
@@ -16,14 +16,14 @@ services:
   # ACE Resource Server (AS)
   ace-resource-server:
     image: ghcr.io/sifis-home/ace-resource-server:latest
-    entrypoint: ["java", "-jar", "AceRS/AceRS-0.1.0.jar", "-o"]
+    entrypoint: ["java", "-jar", "AceRS/AceRS.jar", "-o"]
     expose:
       - "5685/udp"
 
   # ACE Client
   ace-client:
     image: ghcr.io/sifis-home/ace-client:latest
-    entrypoint: ["java", "-jar", "AceClient-0.1.0.jar", "-o"]
+    entrypoint: ["java", "-jar", "AceClient.jar", "-o"]
     depends_on:
       domo-dht-manager:
         condition: service_healthy  
@@ -31,7 +31,7 @@ services:
   # ACE Client DHT
   ace-client-dht:
     image: ghcr.io/sifis-home/ace-client-dht:latest
-    entrypoint: ["java", "-jar", "AceClientDht-0.1.0.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    entrypoint: ["java", "-jar", "AceClientDht.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
     depends_on:
       domo-dht-manager:
         condition: service_healthy  
