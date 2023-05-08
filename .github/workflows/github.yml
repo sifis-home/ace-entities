@@ -116,8 +116,8 @@ jobs:
       - name: Build and push image (Authorization Server)
         uses: docker/build-push-action@v4
         with:
-          context: docker-build/ace-entities/.
-          file: docker-build/ace-entities/Dockerfile-AceAS
+          context: ace-entities/.
+          file: ace-entities/Dockerfile-AceAS
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-authorization-server:latest
