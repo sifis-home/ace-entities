@@ -54,7 +54,7 @@ cp ../Dockerfile.base $dockerfile
 echo 'RUN mkdir -p /apps/AceAS' >> $dockerfile
 echo 'EXPOSE 5683/udp' >> $dockerfile
 echo 'ADD db.pwd /apps/AceAS' >> $dockerfile
-JAR_FILE=`ls AceAS/AceAS*.jar | head -1`
+JAR_FILE=`ls ./AceAS/AceAS*.jar | head -1`
 echo "ADD $JAR_FILE /apps/AceAS" >> $dockerfile
 echo 'ADD lib /apps/lib/' >> $dockerfile
 echo '' >> $dockerfile
