@@ -40,7 +40,7 @@ jobs:
 
       - name: Package ACE entities
         run: |
-          ./scripts/build-ace-entities --with-mysql
+          ./scripts/build-ace-entities.sh --with-mysql
 #          ./code-coverage.sh
 
 #      - name: Deploy Jacoco code coverage reports to gh-pages
