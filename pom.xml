@@ -46,7 +46,7 @@
         <dependency>
             <groupId>com.github.Daven00</groupId>
             <artifactId>ace-java</artifactId>
-            <version>0.0.4-UCS</version>
+            <version>0.0.5-UCS</version>
         </dependency>
         <dependency>
             <groupId>org.eclipse.californium</groupId>
