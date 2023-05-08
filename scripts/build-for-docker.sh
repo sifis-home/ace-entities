@@ -13,7 +13,7 @@ if [ -f "$FILE" ]; then
     echo "$FILE exists."
 else
     echo "$FILE does not exist."
-    ./build-ace-entities.sh --with-mysql
+    ./scripts/build-ace-entities.sh --with-mysql
 fi
 
 ## Create working directory for image building
