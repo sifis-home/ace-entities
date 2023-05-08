@@ -28,7 +28,7 @@ jobs:
 
       - name: Create the (jar) packages and libraries
         run: |
-          ./scripts/build-ace-entities --with-mysql
+          ./scripts/build-ace-entities.sh --with-mysql
 
       - name: Get version
         id: tagName
