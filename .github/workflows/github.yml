@@ -122,194 +122,33 @@ jobs:
           push: true
           tags: ghcr.io/sifis-home/ace-authorization-server:latest
           outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Authorization Server (includes revoked token notification and UCS)
-#
-#      - name: Build and push image (Resource Server)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreRsServer
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-manager:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group Manager (ACE Resource Server)
-#
-#      - name: Build and push image (Group Adversary)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-Adversary
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-adversary:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group Adversary
-#
-#      - name: Build and push image (Group OSCORE Client 1)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Client1
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-client1:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Client 1 (Group A)
-#
-#      - name: Build and push image (Group OSCORE Client 2)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Client2
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-client2:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Client 2 (Group B)
-#
-#      - name: Build and push image (Group OSCORE Server 1)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server1
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server1:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 1 (Group A)
-#
-#      - name: Build and push image (Group OSCORE Server 2)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server2
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server2:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 2 (Group A)
-#
-#      - name: Build and push image (Group OSCORE Server 3)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server3
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server3:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 3 (Group A)
-#
-#      - name: Build and push image (Group OSCORE Server 4)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server4
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server4:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 4 (Group B)
-#
-#      - name: Build and push image (Group OSCORE Server 5)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server5
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server5:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 5 (Group B)
-#
-#      - name: Build and push image (Group OSCORE Server 6)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/group/.
-#          file: docker-build/group/Dockerfile-OscoreAsRsClient-Server6
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/group-server6:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Group OSCORE Server 6 (Group B)
-#
-#      - name: Build and push image (CoAP Phase0Client)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase0Client
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase0-client:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase0Client (CoAP-only Client)
-#
-#      - name: Build and push image (EDHOC Phase1Server)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase1Server
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase1-server:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase1Server (EDHOC server using method 0 and no optimized request)
-#
-#      - name: Build and push image (EDHOC Phase1Client)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase1Client
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase1-client:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase1Client (EDHOC client using method 0 and no optimized request)
-#
-#      - name: Build and push image (EDHOC Phase2Server)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase2Server
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase2-server:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase2Server (EDHOC server using method 3 and no optimized request)
-#
-#      - name: Build and push image (EDHOC Phase2Client)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase2Client
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase2-client:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase2Client (EDHOC client using method 3 and no optimized request)
-#
-#      - name: Build and push image (EDHOC Phase3Server)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase3Server
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase3-server:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase3Server (EDHOC server using method 0 and the optimized request)
-#
-#      - name: Build and push image (EDHOC Phase3Client)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase3Client
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase3-client:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase3Client (EDHOC client using method 0 and the optimized request)
-#
-#      - name: Build and push image (EDHOC Phase4Server)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase4Server
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase4-server:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase4Server (EDHOC server using method 3 and the optimized request)
-#
-#      - name: Build and push image (EDHOC Phase4Client)
-#        uses: docker/build-push-action@v4
-#        with:
-#          context: docker-build/edhoc/.
-#          file: docker-build/edhoc/Dockerfile-Phase4Client
-#          platforms: linux/amd64, linux/arm64, linux/arm
-#          push: true
-#          tags: ghcr.io/sifis-home/phase4-client:latest
-#          outputs: type=registry, annotation-index.org.opencontainers.image.description=wp3-solutions - Phase4Client (EDHOC client using method 3 and the optimized request)
 
+      - name: Build and push image (Resource Server)
+        uses: docker/build-push-action@v4
+        with:
+          context: ace-entities/.
+          file: ace-entities/Dockerfile-AceRS
+          platforms: linux/amd64, linux/arm64, linux/arm
+          push: true
+          tags: ghcr.io/sifis-home/ace-resource-server:latest
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Resource Server
+
+      - name: Build and push image (Client)
+        uses: docker/build-push-action@v4
+        with:
+          context: ace-entities/.
+          file: ace-entities/Dockerfile-AceClient
+          platforms: linux/amd64, linux/arm64, linux/arm
+          push: true
+          tags: ghcr.io/sifis-home/ace-client:latest
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client
+
+      - name: Build and push image (Client DHT)
+        uses: docker/build-push-action@v4
+        with:
+          context: ace-entities/.
+          file: ace-entities/Dockerfile-AceClientDht
+          platforms: linux/amd64, linux/arm64, linux/arm
+          push: true
+          tags: ghcr.io/sifis-home/ace-client-dht:latest
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client DHT
