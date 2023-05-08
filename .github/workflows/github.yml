@@ -121,9 +121,7 @@ jobs:
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-authorization-server:latest
-          outputs: |
-            type=registry, 
-            annotation-index.org.opencontainers.image.description=ace-entities - ACE Authorization Server (includes revoked token notification and UCS)
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Authorization Server (includes revoked token notification and UCS)
 #
 #      - name: Build and push image (Resource Server)
 #        uses: docker/build-push-action@v4
