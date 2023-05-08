@@ -21,7 +21,7 @@ mkdir -p docker-build/ace-entities
 cd docker-build
 
 # Copy needed files (jar files and library files)
-cp -r ../apps/ ./ace-entities
+cp -r ../apps/* ./ace-entities
 
 ## Create base Dockerfile. Initial part is same for all images.
 #  Setting the timezone, otherwise the default is UTC.
