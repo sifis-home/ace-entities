@@ -4,7 +4,9 @@ import COSE.*;
 import it.cnr.iit.ucs.properties.components.PipProperties;
 import it.cnr.iit.xacml.Category;
 import it.cnr.iit.xacml.DataType;
+import jakarta.websocket.DeploymentException;
 import org.eclipse.californium.core.coap.CoAP;
+import org.glassfish.tyrus.client.ClientManager;
 import se.sics.ace.*;
 import se.sics.ace.as.PDP;
 import se.sics.ace.as.TrlConfig;
@@ -19,6 +21,7 @@ import se.sics.ace.ucs.properties.UcsPapProperties;
 import se.sics.ace.ucs.properties.UcsPipReaderProperties;
 
 import java.io.*;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -65,11 +68,22 @@ public class AceAS implements Callable<Integer> {
             "RS1-AS-Default-PSK-for-tokens---"; //32-byte long
 
     private final static String DEFAULT_RESOURCES = "Temp HelloWorld";
+    private final static String DEFAULT_DHT_ADDRESS = "ws://localhost:3000/ws";
 
-    @Option(names = {"-d", "--dht"},
-            required = false,
-            description = "Enable DHT logging")
-    public boolean isDhtLoggingEnabled = false;
+    static class DhtArgs {
+        @Option(names = {"-D", "--dht"},
+                required = true,
+                description = "Enable DHT.\n")
+        boolean isDhtEnabled = false;
+
+        @Option(names = {"-w", "--websocketuri"},
+                required = false,
+                defaultValue = DEFAULT_DHT_ADDRESS,
+                description = "The URI of the websocket where the DHT process is listening.\n" +
+                        "(default: ${DEFAULT-VALUE})\n")
+        String dhtUri;
+    }
+
 
     @Option(names = {"-K", "--Kisspdp"},
             required = false,
@@ -158,10 +172,14 @@ public class AceAS implements Callable<Integer> {
 
         @ArgGroup(exclusive = false, multiplicity = "1")
         Opt opt;
+
     }
 
     @ArgGroup(exclusive = false, multiplicity = "0..*")
     List<AceAS.Args> args;
+
+    @ArgGroup(exclusive = false)
+    DhtArgs dhtArg;
 
     static OneKey myAsymmKey;
 
@@ -181,6 +199,9 @@ public class AceAS implements Callable<Integer> {
 
     private static final File attributesDir = new File(Utils.getResourcePath(AceAS.class), "attributes");
     private static final File policiesDir = new File(Utils.getResourcePath(AceAS.class), "policies");
+    private boolean isDhtEnabled;
+    private String dhtAddr;
+
 
     //--- MAIN
     public static void main(String[] args) {
@@ -301,11 +322,25 @@ public class AceAS implements Callable<Integer> {
             setupResourceServer(r);
         }
 
-        if (isDhtLoggingEnabled) {
+        // parse DHT arguments
+        try {
+            isDhtEnabled = this.dhtArg.isDhtEnabled;
+            if (isDhtEnabled) {
+                try {
+                    dhtAddr = this.dhtArg.dhtUri;
+                } catch (NullPointerException e) {
+                    dhtAddr = DEFAULT_DHT_ADDRESS;
+                }
+            }
+        } catch (NullPointerException e) {
+            isDhtEnabled = false;
+            dhtAddr = DEFAULT_DHT_ADDRESS;
+        }
+        if (isDhtEnabled) {
             // Possibly set up connection to the DHT for sending logging statements
             System.out.println("Connecting to the DHT for logging.");
             DhtLogger.setLogging(true);
-            DhtLogger.establishConnection();
+            DhtLogger.establishConnection(dhtAddr);
         }
 
     }
