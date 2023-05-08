@@ -117,7 +117,7 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: docker-build/ace-entities/AceAS/.
-          file: docker-build/Dockerfile-AceAS
+          file: docker-build/ace-entities/Dockerfile-AceAS
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-authorization-server:latest
