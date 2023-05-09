@@ -26,7 +26,7 @@ services:
 #  # ACE Client
 #  ace-client:
 #    image: ghcr.io/sifis-home/ace-client:latest
-#    entrypoint: ["java", "-jar", "AceClient.jar", "-o"]
+#    entrypoint: ["java", "-jar", "AceClient/AceClient.jar", "-o"]
 #    depends_on:
 #      ace-authorization-server:
 #        condition: service_started
@@ -36,7 +36,7 @@ services:
   # ACE Client DHT
   ace-client-dht:
     image: ghcr.io/sifis-home/ace-client-dht:latest
-    entrypoint: ["java", "-jar", "AceClientDht.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    entrypoint: ["java", "-jar", "AceClientDht/AceClientDht.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
     depends_on:
       domo-dht-manager:
         condition: service_healthy
