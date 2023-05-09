@@ -4,7 +4,7 @@ services:
   # ACE Authorization Server (AS)
   ace-authorization-server:
     image: ghcr.io/sifis-home/ace-authorization-server:latest
-    entrypoint: ["java", "-jar", "AceAS/AceAS.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws", "-d", "jdbc:mysql://root:xxxxxx@mysql-db:3306"]
+    entrypoint: ["java", "-jar", "AceAS/AceAS.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws", "-d", "jdbc:mysql://root:xxxxxx@mysql-db:3306", "-h"]
     expose:
       - "5683/udp"
     depends_on:
@@ -12,6 +12,11 @@ services:
         condition: service_healthy
       domo-dht-manager:
         condition: service_healthy
+    healthcheck:
+      test: bash -c '[ -f /AceAS/ready ]'
+      interval: 5s
+      timeout: 2s
+      retries: 10
 
   # ACE Resource Server (RS)
   ace-resource-server:
@@ -21,7 +26,7 @@ services:
       - "5685/udp"
     depends_on:
       ace-authorization-server:
-        condition: service_started
+        condition: service_healthy
 
 #  # ACE Client
 #  ace-client:
@@ -29,7 +34,7 @@ services:
 #    entrypoint: ["java", "-jar", "AceClient/AceClient.jar", "-o"]
 #    depends_on:
 #      ace-authorization-server:
-#        condition: service_started
+#        condition: service_healthy
 #      ace-resource-server:
 #        condition: service_started
 
@@ -41,7 +46,7 @@ services:
       domo-dht-manager:
         condition: service_healthy
       ace-authorization-server:
-        condition: service_started
+        condition: service_healthy
       ace-resource-server:
         condition: service_started
 
