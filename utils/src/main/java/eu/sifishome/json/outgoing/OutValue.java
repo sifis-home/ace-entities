@@ -2,26 +2,26 @@ package eu.sifishome.json.outgoing;
 
 public class OutValue {
 
-	private String message;
-	private String topic;
+    private String message;
+    private String topic;
 
-	public OutValue() {
+    public OutValue() {
 
-	}
+    }
 
-	public void setMessage(String message) {
-		this.message = message;
-	}
+    public void setMessage(String message) {
+        this.message = message;
+    }
 
-	public String getMessage() {
-		return message;
-	}
+    public String getMessage() {
+        return message;
+    }
 
-	public void setTopic(String topic) {
-		this.topic = topic;
-	}
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
 
-	public String getTopic() {
-		return topic;
-	}
+    public String getTopic() {
+        return topic;
+    }
 }

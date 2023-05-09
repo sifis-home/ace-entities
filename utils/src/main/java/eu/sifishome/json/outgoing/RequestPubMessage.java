@@ -11,17 +11,17 @@ package eu.sifishome.json.outgoing;
 
 public class RequestPubMessage {
 
-	private OutValue value;
+    private OutValue value;
 
-	public RequestPubMessage() {
+    public RequestPubMessage() {
 
-	}
+    }
 
-	public void setValue(OutValue value) {
-		this.value = value;
-	}
+    public void setValue(OutValue value) {
+        this.value = value;
+    }
 
-	public OutValue getValue() {
-		return value;
-	}
+    public OutValue getValue() {
+        return value;
+    }
 }

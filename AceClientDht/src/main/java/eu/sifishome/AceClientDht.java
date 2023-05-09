@@ -21,6 +21,9 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.glassfish.tyrus.client.ClientManager;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
 import se.sics.ace.*;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.BasicTrlStore;
@@ -29,22 +32,15 @@ import se.sics.ace.coap.client.TrlResponses;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.rs.AsRequestCreationHints;
 
-import jakarta.websocket.OnMessage;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.concurrent.*;
-
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Spec;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.ParameterException;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -216,17 +212,23 @@ public class AceClientDht implements Callable<Integer> {
     }
 
     static class NotificationArgs {
-        @ArgGroup(exclusive = false, multiplicity = "1") PollingArgs pollingArgs;
-        @ArgGroup(exclusive = false, multiplicity = "1") ObserveArgs observeArgs;
+        @ArgGroup(exclusive = false, multiplicity = "1")
+        PollingArgs pollingArgs;
+        @ArgGroup(exclusive = false, multiplicity = "1")
+        ObserveArgs observeArgs;
     }
 
     static class Args {
-        @ArgGroup(exclusive = true, multiplicity = "1") NotificationArgs notification;
-        @ArgGroup(exclusive = false) TrlAddrArg trlAddrArg;
-        @ArgGroup(exclusive = false) DhtArgs dhtArg;
+        @ArgGroup(exclusive = true, multiplicity = "1")
+        NotificationArgs notification;
+        @ArgGroup(exclusive = false)
+        TrlAddrArg trlAddrArg;
+        @ArgGroup(exclusive = false)
+        DhtArgs dhtArg;
     }
 
-    @ArgGroup(exclusive = false) Args args;
+    @ArgGroup(exclusive = false)
+    Args args;
 
     /**
      * Symmetric key shared with the authorization server and used for the OSCORE context
@@ -240,7 +242,7 @@ public class AceClientDht implements Callable<Integer> {
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
-    private static final byte[] idContext = new byte[] {0x44};
+    private static final byte[] idContext = new byte[]{0x44};
     private byte[] sId;
 
     private boolean isPolling = false;
@@ -281,7 +283,7 @@ public class AceClientDht implements Callable<Integer> {
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
                 sId, // client identity
-                new byte[] {0x33}, // AS identity
+                new byte[]{0x33}, // AS identity
                 null, null, null, idContext, MAX_UNFRAGMENTED_SIZE);
 
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
@@ -331,6 +333,7 @@ public class AceClientDht implements Callable<Integer> {
         CoapClient client4AS;
         String trlUri;
         TrlStore trlStore;
+
         public Poller(CoapClient client4AS, String trlUri, TrlStore trlStore) {
             this.client4AS = client4AS;
             this.trlUri = trlUri;
@@ -361,7 +364,8 @@ public class AceClientDht implements Callable<Integer> {
             this.trlStore = trlStore;
         }
 
-        @Override public void onLoad(CoapResponse response) {
+        @Override
+        public void onLoad(CoapResponse response) {
             try {
                 TrlResponses.processResponse(response, trlStore);
                 purgeRevokedTokens(trlStore);
@@ -371,7 +375,8 @@ public class AceClientDht implements Callable<Integer> {
             System.out.println("NOTIFICATION: " + response.advanced());
         }
 
-        @Override public void onError() {
+        @Override
+        public void onError() {
             System.err.println("OBSERVE FAILED");
         }
     }
@@ -419,14 +424,13 @@ public class AceClientDht implements Callable<Integer> {
 
             TimeProvider time = new KissTime();
 
-            while(true) {
+            while (true) {
 
                 // 1. Get the token
                 String tokenHash;
                 try {
                     tokenHash = getTokenIfNotPresent(aud, scope);
-                }
-                catch (AceException e) {
+                } catch (AceException e) {
                     //System.out.println("Token not issued: " + e.getMessage());
                     shutdown();
                     System.out.println("Quitting.");
@@ -479,7 +483,7 @@ public class AceClientDht implements Callable<Integer> {
                             break;
                         }
                     }
-                    i = (i+1)%resources.size();
+                    i = (i + 1) % resources.size();
 
                     // wait 'requestInterval' before making another request,
                     // or wake up and ignore the remaining time if the
@@ -532,8 +536,7 @@ public class AceClientDht implements Callable<Integer> {
             if (rsRes.getCode().isServerError() || rsRes.getCode().isClientError()) {
                 throw new AceException("Failure response received from the RS (Posting new token)");
             }
-        }
-        else {
+        } else {
             CoapResponse rsRes = OSCOREProfileRequests.postTokenUpdate(
                     rsUri + "/authz-info", asRes, ctxDB);
             System.out.println("\nResponse from RS (token update post)");
@@ -555,8 +558,7 @@ public class AceClientDht implements Callable<Integer> {
 
         if (res.getCode().isSuccess()) {
             System.out.println("Response Message:    " + res.getResponseText() + "\n");
-        }
-        else if (res.getCode().isServerError() || res.getCode().isClientError()) {
+        } else if (res.getCode().isServerError() || res.getCode().isClientError()) {
 
             if (res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
                 // print AS Request Creation Hints
@@ -704,8 +706,7 @@ public class AceClientDht implements Callable<Integer> {
         try {
             parsed = new Gson().fromJson(message, JsonIn.class);
             topicField = parsed.getVolatile().getValue().getTopic();
-        }
-        catch (JsonSyntaxException | NullPointerException e) {
+        } catch (JsonSyntaxException | NullPointerException e) {
 //            System.out.println("[DHT] - Unable to parse JSON. " +
 //                    "Its JSON schema either differs from the expected one, " +
 //                    "or the JSON is malformed.");
@@ -780,7 +781,7 @@ public class AceClientDht implements Callable<Integer> {
      * and save information about it in a TokenInfo structure.
      * Also, save in the map validTokensMap the tokenHash and the TokenInfo.
      *
-     * @param aud the audience asked
+     * @param aud   the audience asked
      * @param scope the scope asked
      * @return the tokenhash of the issued token
      * @throws AceException if some error occurs requesting the token,
@@ -826,7 +827,7 @@ public class AceClientDht implements Callable<Integer> {
      * in the validTokensMap to retrieve additional information.
      *
      * @param audience the audience
-     * @param scope the scope
+     * @param scope    the scope
      * @return the tokenhash of a token valid for that audience and scope
      * @throws AceException if an error occurs getting the token
      */
@@ -857,7 +858,7 @@ public class AceClientDht implements Callable<Integer> {
      * If so, do nothing. Otherwise, post the token at the provided address
      *
      * @param tokenHash the tokenhash of the token to check and optionally post
-     * @param address the address of the resource server
+     * @param address   the address of the resource server
      * @throws AceException if an error occurs retrieving the actual token or posting the token
      */
     private void postTokenIfNotPosted(String tokenHash, String address) throws AceException {
@@ -870,15 +871,13 @@ public class AceClientDht implements Callable<Integer> {
             try {
                 map = Constants.getParams(
                         CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload()));
-            }
-            catch (AceException e ) {
+            } catch (AceException e) {
                 throw new AceException("Error retrieving the token from valid tokens: " + e.getMessage());
             }
             try {
                 tokenInfo.setPosted(
                         postToken(address, tokenInfo.getAsResponse(), map));
-            }
-            catch (OSException e) {
+            } catch (OSException e) {
                 throw new AceException("Error posting the token: " + e.getMessage());
             }
         }

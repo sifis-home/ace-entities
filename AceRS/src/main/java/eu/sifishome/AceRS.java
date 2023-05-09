@@ -5,7 +5,10 @@ import COSE.CoseException;
 import COSE.MessageTag;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
-import org.eclipse.californium.core.*;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -13,7 +16,12 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import se.sics.ace.*;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.coap.TrlCoapHandler;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.TrlResponses;
@@ -29,8 +37,8 @@ import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
 
-import java.io.*;
-
+import java.io.File;
+import java.io.IOException;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.Callable;
@@ -38,20 +46,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Spec;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.ParameterException;
-
 
 /**
  * Resource Server to test with AceClient and AceAS
  *
  * @author Marco Rasori
- *
  */
 
 
@@ -222,7 +221,7 @@ public class AceRS implements Callable<Integer> {
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
-    static File writeDir = new File (Utils.getResourcePath(AceRS.class));
+    static File writeDir = new File(Utils.getResourcePath(AceRS.class));
     static String tokenFile = writeDir.getAbsolutePath() + File.separator + "tokens.json";
     static String tokenHashesFile = writeDir.getAbsolutePath() + File.separator + "tokenhashes.json";
 
@@ -232,7 +231,7 @@ public class AceRS implements Callable<Integer> {
     static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
     private static OscoreIntrospection introspection = null;
 
-    private static final byte[] idContext = new byte[] {0x44};
+    private static final byte[] idContext = new byte[]{0x44};
     private byte[] sId;
 
     private boolean isPolling = false;
@@ -298,13 +297,13 @@ public class AceRS implements Callable<Integer> {
             startIntrospector(cti);
         }
 
-        while(isIntrospect) {
+        while (isIntrospect) {
             synchronized (syncCtisList) {
                 while (syncCtisList.isEmpty()) {
                     syncCtisList.wait();
                 }
                 ListIterator<String> iter = syncCtisList.listIterator();
-                while(iter.hasNext()) {
+                while (iter.hasNext()) {
                     startIntrospector(iter.next());
                     iter.remove();
                 }
@@ -348,8 +347,7 @@ public class AceRS implements Callable<Integer> {
 
                     introspectorMap.get(cti).shutdown();
                     introspectorMap.remove(cti);
-                }
-                else {
+                } else {
                     System.out.println("Introspection result: Token is valid.");
                 }
             } catch (AceException | IntrospectionException e) {

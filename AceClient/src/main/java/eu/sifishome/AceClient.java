@@ -12,6 +12,9 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
 import se.sics.ace.*;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.BasicTrlStore;
@@ -27,14 +30,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ArgGroup;
-import picocli.CommandLine.Spec;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.ParameterException;
 
 import static java.lang.Thread.sleep;
 
@@ -184,16 +179,21 @@ public class AceClient implements Callable<Integer> {
     }
 
     static class NotificationArgs {
-        @ArgGroup(exclusive = false, multiplicity = "1") PollingArgs pollingArgs;
-        @ArgGroup(exclusive = false, multiplicity = "1") ObserveArgs observeArgs;
+        @ArgGroup(exclusive = false, multiplicity = "1")
+        PollingArgs pollingArgs;
+        @ArgGroup(exclusive = false, multiplicity = "1")
+        ObserveArgs observeArgs;
     }
 
     static class Args {
-        @ArgGroup(exclusive = true, multiplicity = "1") NotificationArgs notification;
-        @ArgGroup(exclusive = false) TrlAddrArg trlAddrArg;
+        @ArgGroup(exclusive = true, multiplicity = "1")
+        NotificationArgs notification;
+        @ArgGroup(exclusive = false)
+        TrlAddrArg trlAddrArg;
     }
 
-    @ArgGroup(exclusive = false) Args args;
+    @ArgGroup(exclusive = false)
+    Args args;
 
     /**
      * Symmetric key shared with the authorization server and used for the OSCORE context
@@ -207,7 +207,7 @@ public class AceClient implements Callable<Integer> {
 
     private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
-    private static final byte[] idContext = new byte[] {0x44};
+    private static final byte[] idContext = new byte[]{0x44};
     private byte[] sId;
 
     private boolean isPolling = false;
@@ -237,7 +237,7 @@ public class AceClient implements Callable<Integer> {
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
                 sId, // client identity
-                new byte[] {0x33}, // AS identity
+                new byte[]{0x33}, // AS identity
                 null, null, null, idContext, MAX_UNFRAGMENTED_SIZE);
 
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
@@ -287,6 +287,7 @@ public class AceClient implements Callable<Integer> {
         CoapClient client4AS;
         String trlUri;
         TrlStore trlStore;
+
         public Poller(CoapClient client4AS, String trlUri, TrlStore trlStore) {
             this.client4AS = client4AS;
             this.trlUri = trlUri;
@@ -317,7 +318,8 @@ public class AceClient implements Callable<Integer> {
             this.trlStore = trlStore;
         }
 
-        @Override public void onLoad(CoapResponse response) {
+        @Override
+        public void onLoad(CoapResponse response) {
             try {
                 TrlResponses.processResponse(response, trlStore);
                 purgeRevokedTokens(trlStore);
@@ -327,7 +329,8 @@ public class AceClient implements Callable<Integer> {
             System.out.println("NOTIFICATION: " + response.advanced());
         }
 
-        @Override public void onError() {
+        @Override
+        public void onError() {
             System.err.println("OBSERVE FAILED");
         }
     }
@@ -400,12 +403,12 @@ public class AceClient implements Callable<Integer> {
                 sleep(500L);
             }
 
-            while(true) {
+            while (true) {
                 String allowedScopes;
                 // 1. Get the token
                 Response asRes;
                 try {
-                    tokenCount ++;
+                    tokenCount++;
                     asRes = getToken(client4AS, aud, scope);
                 } catch (AceException e) {
                     System.out.println(e.getMessage());
@@ -463,7 +466,7 @@ public class AceClient implements Callable<Integer> {
                             break;
                         }
                     }
-                    i = (i+1)%resources.size();
+                    i = (i + 1) % resources.size();
 
                     // wait 'requestInterval' before making another request,
                     // or wake up and ignore the remaining time if the
@@ -516,8 +519,7 @@ public class AceClient implements Callable<Integer> {
             if (rsRes.getCode().isServerError() || rsRes.getCode().isClientError()) {
                 throw new AceException("Failure response received from the RS (Posting new token)");
             }
-        }
-        else {
+        } else {
             CoapResponse rsRes = OSCOREProfileRequests.postTokenUpdate(
                     rsUri + "/authz-info", asRes, ctxDB);
             System.out.println("\nResponse from RS (token update post)");
@@ -538,8 +540,7 @@ public class AceClient implements Callable<Integer> {
 
         if (res.getCode().isSuccess()) {
             System.out.println("Response Message:    " + res.getResponseText() + "\n");
-        }
-        else if (res.getCode().isServerError() || res.getCode().isClientError()) {
+        } else if (res.getCode().isServerError() || res.getCode().isClientError()) {
 
             if (res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {
                 // print AS Request Creation Hints
