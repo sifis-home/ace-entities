@@ -26,15 +26,27 @@ public class DBHelper
     /**
      * Easy place to change which DB adapter wants to be used for all tests.
      */
-    private static final SQLDBAdapter dbAdapter = new MySQLDBAdapter(); //PostgreSQLDBAdapter();
+    private static SQLDBAdapter dbAdapter = new MySQLDBAdapter(); //PostgreSQLDBAdapter();
 
-    private static final String testUsername = "testuser";
-    private static final String testPassword = "testpwd";
-    private static final String testDBName = "testdb";
+    private static String testUsername = "testuser";
+    private static String testPassword = "testpwd";
+    private static String testDBName = "testdb";
 
     private static String dbAdminUser = null;
     private static String dbAdminPwd = null;
-    private static String dbUrl;
+    private static String dbUrl = null;
+
+    protected static void restoreDefaultClassFields() {
+        dbAdapter = new MySQLDBAdapter();
+
+        testUsername = "testuser";
+        testPassword = "testpwd";
+        testDBName = "testdb";
+
+        dbAdminUser = null;
+        dbAdminPwd = null;
+        dbUrl = null;
+    }
 
     /**
      * Sets up the DB using the current default adapter.
