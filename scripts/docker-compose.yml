@@ -4,7 +4,7 @@ services:
   # ACE Authorization Server (AS)
   ace-authorization-server:
     image: ghcr.io/sifis-home/ace-authorization-server:latest
-    entrypoint: ["java", "-jar", "AceAS/AceAS.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
+    entrypoint: ["java", "-jar", "AceAS/AceAS.jar", "-D", "-w", "ws://domo-dht-manager:3000/ws", "-d", "jdbc:mysql://root:xxxxxx@mysql-db:3306"]
     expose:
       - "5683/udp"
     depends_on:
@@ -13,20 +13,25 @@ services:
       domo-dht-manager:
         condition: service_healthy
 
-  # ACE Resource Server (AS)
+  # ACE Resource Server (RS)
   ace-resource-server:
     image: ghcr.io/sifis-home/ace-resource-server:latest
     entrypoint: ["java", "-jar", "AceRS/AceRS.jar", "-o"]
     expose:
       - "5685/udp"
-
-  # ACE Client
-  ace-client:
-    image: ghcr.io/sifis-home/ace-client:latest
-    entrypoint: ["java", "-jar", "AceClient.jar", "-o"]
     depends_on:
-      domo-dht-manager:
-        condition: service_healthy  
+      ace-authorization-server:
+        condition: service_started
+
+#  # ACE Client
+#  ace-client:
+#    image: ghcr.io/sifis-home/ace-client:latest
+#    entrypoint: ["java", "-jar", "AceClient.jar", "-o"]
+#    depends_on:
+#      ace-authorization-server:
+#        condition: service_started
+#      ace-resource-server:
+#        condition: service_started
 
   # ACE Client DHT
   ace-client-dht:
@@ -34,7 +39,11 @@ services:
     entrypoint: ["java", "-jar", "AceClientDht.jar", "-o", "-D", "-w", "ws://domo-dht-manager:3000/ws"]
     depends_on:
       domo-dht-manager:
-        condition: service_healthy  
+        condition: service_healthy
+      ace-authorization-server:
+        condition: service_started
+      ace-resource-server:
+        condition: service_started
 
   # MySQL server needed for AS. ####The AS -db parameter contents matches the MySQL server config.
   mysql-db:
