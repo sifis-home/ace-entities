@@ -280,6 +280,8 @@ public class AceClientDht implements Callable<Integer> {
 
         parseInputs();
 
+        Utils.waitForServer("Authorization Server", asUri, 2000L);
+
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
                 sId, // client identity
@@ -450,6 +452,8 @@ public class AceClientDht implements Callable<Integer> {
                 Timer timer = new Timer();
                 timer.schedule(new ExpirationTask(tokenHash, validTokensMap), timeToExpire);
                 expTasks.add(timer);
+
+                Utils.waitForServer("Resource Server", rsAddr, 2000L);
 
                 // 2. Post the token
                 try {
@@ -729,6 +733,9 @@ public class AceClientDht implements Callable<Integer> {
         try {
             // 1. get the token
             tokenHash = getTokenIfNotPresent(audienceField, scopeField);
+
+            Utils.waitForServer("Resource Server", addressField, 2000L);
+
             // 2. post the token
             postTokenIfNotPosted(tokenHash, addressField);
         } catch (AceException e) {

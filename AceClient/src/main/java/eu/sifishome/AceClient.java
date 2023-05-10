@@ -234,6 +234,8 @@ public class AceClient implements Callable<Integer> {
 
         parseInputs();
 
+        Utils.waitForServer("Authorization Server", asUri, 2000L);
+
         // initialize OSCORE context
         ctx = new OSCoreCtx(key128, true, null,
                 sId, // client identity
@@ -429,6 +431,8 @@ public class AceClient implements Callable<Integer> {
                 validTokens.add(tokenHash);
                 allowedScopes =
                         map.get(Constants.SCOPE) == null ? scope : map.get(Constants.SCOPE).AsString();
+
+                Utils.waitForServer("Resource Server", rsAddr, 2000L);
 
                 // 2. Post the token
                 try {

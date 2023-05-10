@@ -1,5 +1,6 @@
 package eu.sifishome;
 
+import org.eclipse.californium.core.CoapClient;
 import picocli.CommandLine;
 import se.sics.ace.AceException;
 
@@ -117,5 +118,16 @@ public class Utils {
         }
 
         return input;
+    }
+
+    public static void waitForServer(String entity, String srvUri, Long timeout) {
+
+        CoapClient checker = new CoapClient(srvUri);
+
+        while (!checker.ping(timeout)) {
+            System.out.println("Attempting to reach " + entity + " at: " + srvUri + " ...");
+        }
+        System.out.println(entity + " at " + srvUri + " is available.");
+        checker.shutdown();
     }
 }

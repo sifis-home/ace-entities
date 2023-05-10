@@ -270,6 +270,8 @@ public class AceRS implements Callable<Integer> {
         setUpCwtCryptoCtx();
         setUpServer();
 
+        Utils.waitForServer("Authorization Server", asUri, 2000L);
+
         rs.start();
         System.out.println("Server starting");
 
