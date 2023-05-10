@@ -71,11 +71,6 @@ public class AceAS implements Callable<Integer> {
     private final static String DEFAULT_DHT_ADDRESS = "ws://localhost:3000/ws";
     private final static String DEFAULT_DBURI = "jdbc:mysql://localhost:3306";
 
-    @Option(names = {"-h", "--healthcheck"},
-            required = false,
-            description = "Write a file named 'ready' to perform a healthcheck.\n")
-    boolean isHealthcheck = false;
-
     @Option(names = {"-d", "--dbUri"},
             required = false,
             defaultValue = DEFAULT_DBURI,
@@ -262,19 +257,6 @@ public class AceAS implements Callable<Integer> {
         timer = new Timer();
         timer.schedule(new AttributeChanger("thermometer-reachable.txt", "changedValue"),
                 30000);// + (int) (Math.random() * 30000));
-
-        if (isHealthcheck)
-        {
-            File file = new File(Utils.getResourcePath(AceAS.class) + File.separator + "ready");
-            FileWriter fw = null;
-            try {
-                fw = new FileWriter(file);
-                fw.write(String.valueOf(time.getCurrentTime()));
-                fw.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
 
         return 0;
     }
