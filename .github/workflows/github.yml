@@ -80,12 +80,7 @@ jobs:
           retention-days: 5
           if-no-files-found: error
           path: |
-            ./docker-build/*
-#            ./*/group/*
-#            ./*/edhoc/*
-#            ./*/group/lib/*
-#            ./*/edhoc/lib/*
-  
+            ./docker-build/*  
 
   # Build multiarch Docker Images and push as GitHub Packages
   docker-image-push:
@@ -121,7 +116,7 @@ jobs:
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-authorization-server:latest
-          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Authorization Server (includes revoked token notification and UCS)
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Authorization Server (includes revoked token notification and UCS). Configured with DHT logging enabled.
 
       - name: Build and push image (Resource Server)
         uses: docker/build-push-action@v4
@@ -131,7 +126,7 @@ jobs:
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-resource-server:latest
-          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Resource Server
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Resource Server. Configured with CoAP Observe option enabled for the /trl endpoint.
 
       - name: Build and push image (Client)
         uses: docker/build-push-action@v4
@@ -141,7 +136,7 @@ jobs:
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-client:latest
-          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client. Configured with CoAP Observe option enabled for the /trl endpoint.
 
       - name: Build and push image (Client DHT)
         uses: docker/build-push-action@v4
@@ -151,4 +146,4 @@ jobs:
           platforms: linux/amd64, linux/arm64, linux/arm
           push: true
           tags: ghcr.io/sifis-home/ace-client-dht:latest
-          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client DHT
+          outputs: type=registry, annotation-index.org.opencontainers.image.description=ace-entities - ACE Client DHT. Configured with CoAP Observe option enabled for the /trl endpoint; configured with DHT connection enabled.
