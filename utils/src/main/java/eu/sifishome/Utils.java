@@ -120,14 +120,29 @@ public class Utils {
         return input;
     }
 
-    public static void waitForServer(String entity, String srvUri, Long timeout) {
+    /**
+     * Determine if a CoAP server is reachable by pinging it.
+     *
+     * @param entity   the (common) name of the entity to ping
+     * @param srvUri   the URI of the server to ping
+     * @param timeout  the time (in milliseconds) after which the ping gives up
+     * @param attempts the number of failing pings before returning
+     * @return true if the server is reachable (ping was successful), false otherwise
+     */
+    public static boolean isServerReachable(String entity, String srvUri, Long timeout, int attempts) {
 
         CoapClient checker = new CoapClient(srvUri);
 
-        while (!checker.ping(timeout)) {
-            System.out.println("Attempting to reach " + entity + " at: " + srvUri + " ...");
+        for (int i = 0; i < attempts; i++) {
+            System.out.println("Attempt to reach " + entity + " at: " + srvUri + " ...");
+            if (checker.ping(timeout)) {
+                System.out.println(entity + " at " + srvUri + " is available.");
+                checker.shutdown();
+                return true;
+            }
         }
-        System.out.println(entity + " at " + srvUri + " is available.");
+        System.out.println("Unable to reach "+ entity + " at " + srvUri + ".");
         checker.shutdown();
+        return false;
     }
 }
