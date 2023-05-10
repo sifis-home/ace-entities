@@ -41,6 +41,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 /**
@@ -853,14 +855,14 @@ public class AceClientDht implements Callable<Integer> {
         String tokenHash = null;
 
         for (Map.Entry<String, TokenInfo> pair : validTokensMap.entrySet()) {
-            if (pair.getValue().getScope().contains(scope)
-                    && pair.getValue().getAudience().contains(audience)) {
+            if (isSubsetOf(scope, pair.getValue().getScope())
+                    && isSubsetOf(audience, pair.getValue().getAudience())) {
                 isTokenPresent = true;
                 tokenHash = pair.getKey();
-                System.out.println("TOKEN ALREADY PRESENT");
+                System.out.println("A token is already present for scope \"" +
+                        scope + "\" and audience \"" + audience + "\"");
                 break;
             }
-            System.out.println("TOKEN NOT PRESENT");
         }
 
         if (!isTokenPresent) {
@@ -868,6 +870,29 @@ public class AceClientDht implements Callable<Integer> {
             tokenHash = getTokenAndUpdateValidTokens(audience, scope);
         }
         return tokenHash;
+    }
+
+    /**
+     * Given two strings (subsetString and setString), first create
+     * a set out of each one by splitting it based on the space character.
+     * Then, assess if the elements derived from the subsetString are
+     * a subset of the elements derived from the setString.
+     *
+     * @param subsetString the string containing the elements that form the subset
+     * @param setString    the string containing the elements that form the set
+     * @return true, if the elements of the subset are all contained in the set.
+     * false, otherwise.
+     */
+    private boolean isSubsetOf(String subsetString, String setString) {
+        Set<String> subset
+                = Stream.of(subsetString.trim().split("\\s* \\s*"))
+                .collect(Collectors.toSet());
+
+        Set<String> set
+                = Stream.of(setString.trim().split("\\s* \\s*"))
+                .collect(Collectors.toSet());
+
+        return set.containsAll(subset);
     }
 
     /**
