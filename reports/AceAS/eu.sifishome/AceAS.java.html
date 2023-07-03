@@ -1,0 +1,625 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AceAS.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">AceAS</a> &gt; <a href="index.source.html" class="el_package">eu.sifishome</a> &gt; <span class="el_source">AceAS.java</span></div><h1>AceAS.java</h1><pre class="source lang-java linenums">package eu.sifishome;
+
+import COSE.*;
+import it.cnr.iit.ucs.properties.components.PipProperties;
+import it.cnr.iit.xacml.Category;
+import it.cnr.iit.xacml.DataType;
+import jakarta.websocket.DeploymentException;
+import org.eclipse.californium.core.coap.CoAP;
+import org.glassfish.tyrus.client.ClientManager;
+import se.sics.ace.*;
+import se.sics.ace.as.PDP;
+import se.sics.ace.as.TrlConfig;
+import se.sics.ace.as.logging.DhtLogger;
+import se.sics.ace.coap.as.CoapDBConnector;
+import se.sics.ace.coap.as.OscoreAS;
+import se.sics.ace.examples.KissPDP;
+import se.sics.ace.examples.KissTime;
+
+import se.sics.ace.ucs.UcsHelper;
+import se.sics.ace.ucs.properties.UcsPapProperties;
+import se.sics.ace.ucs.properties.UcsPipReaderProperties;
+
+import java.io.*;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ArgGroup;
+
+import eu.sifishome.peers.Client;
+import eu.sifishome.peers.ResourceServer;
+
+/**
+ * Authorization Server to test with AceClient and AceRS
+ *
+ * @author Marco Rasori
+ *
+ */
+@Command(name = &quot;a-server&quot;,
+        mixinStandardHelpOptions = true,
+        version = &quot;1.0&quot;,
+        description = &quot;Runs the ACE Authorization Server.\n&quot; +
+                &quot;The default PDP is the UCS&quot;)
+<span class="nc" id="L52">public class AceAS implements Callable&lt;Integer&gt; {</span>
+
+    private final static String DEFAULT_CLIENT_NAME = &quot;ClientA&quot;;
+    private final static String DEFAULT_RESOURCE_SERVER_NAME = &quot;rs1&quot;;
+    private final static String DEFAULT_CLIENT_SCOPE = &quot;r_temp r_helloWorld&quot;;
+    private final static String DEFAULT_RESOURCE_SERVER_SCOPE = &quot;r_temp r_helloWorld&quot;;
+    private final static String DEFAULT_CLIENT_AUD = &quot;rs1&quot;;
+    // the AS automatically adds an audience with the resource server name
+    private final static String DEFAULT_RESOURCE_SERVER_AUD = DEFAULT_RESOURCE_SERVER_NAME;
+    private final static String DEFAULT_CLIENT_SENDER_ID = &quot;0x22&quot;;
+    private final static String DEFAULT_RESOURCE_SERVER_SENDER_ID = &quot;0x11&quot;;
+    private final static String DEFAULT_CLIENT_MASTER_SECRET =
+            &quot;ClientA-AS-MS---&quot;;
+    private final static String DEFAULT_RESOURCE_SERVER_MASTER_SECRET =
+            &quot;RS1-AS-MS-------&quot;; //16-byte long
+    private final static String DEFAULT_RESOURCE_SERVER_TOKEN_PSK =
+            &quot;RS1-AS-Default-PSK-for-tokens---&quot;; //32-byte long
+
+    private final static String DEFAULT_RESOURCES = &quot;Temp HelloWorld&quot;;
+    private final static String DEFAULT_DHT_ADDRESS = &quot;ws://localhost:3000/ws&quot;;
+    private final static String DEFAULT_DBURI = &quot;jdbc:mysql://localhost:3306&quot;;
+
+    @Option(names = {&quot;-d&quot;, &quot;--dbUri&quot;},
+            required = false,
+            defaultValue = DEFAULT_DBURI,
+            description = &quot;The URI of the sql database.\n&quot; +
+                    &quot;Hostname and port MUST be specified.\n&quot; +
+                    &quot;Optionally, admin credentials can be specified \n&quot; +
+                    &quot;in the form username:password within the URI, e.g., \n&quot; +
+                    &quot;jdbc:mysql://username:password@host:port \n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String dbUri;
+
+<span class="nc" id="L85">    static class DhtArgs {</span>
+<span class="nc" id="L86">        @Option(names = {&quot;-D&quot;, &quot;--dht&quot;},</span>
+                required = true,
+                description = &quot;Enable DHT.\n&quot;)
+        boolean isDhtEnabled = false;
+
+        @Option(names = {&quot;-w&quot;, &quot;--websocketuri&quot;},
+                required = false,
+                defaultValue = DEFAULT_DHT_ADDRESS,
+                description = &quot;The URI of the websocket where the DHT process is listening.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        String dhtUri;
+    }
+
+
+    @Option(names = {&quot;-K&quot;, &quot;--Kisspdp&quot;},
+            required = false,
+            description = &quot;Use the KissPDP as PDP.\n&quot; +
+                    &quot;(default: UCS)\n&quot;)
+    private boolean isKissPDP;
+
+<span class="nc" id="L106">    @Option(names = {&quot;-N&quot;, &quot;--numberOfAttributes&quot;},</span>
+            required = false,
+            description = &quot;Number of mutable attributes of the policies containing 'r_temp' and 'r_helloWorld' &quot; +
+                    &quot;subscopes.&quot;)
+    public int numAttributes = 1;
+
+    @Option(names = {&quot;-Y&quot;, &quot;--resources&quot;},
+            required = false,
+            description = &quot;List of resources managed by the AS. Possible values: 'Brightness', 'HelloWorld', &quot; +
+                    &quot;'Humidity', 'Temp', and 'Volume'.\n&quot; +
+                    &quot;(default: '&quot; + DEFAULT_RESOURCES + &quot;')&quot;)
+    String resources;
+
+<span class="nc" id="L119">    static class Opt {</span>
+        @Option(names = {&quot;-n&quot;, &quot;--name&quot;},
+                required = true,
+                description = &quot;The peer name.\n&quot; +
+                        &quot;(default: '&quot; + DEFAULT_CLIENT_NAME + &quot;' for the Client;\n&quot; +
+                        &quot;          '&quot; + DEFAULT_RESOURCE_SERVER_NAME + &quot;' for the Resource Server)&quot;)
+        String name;
+
+        @Option(names = {&quot;-s&quot;, &quot;--scope&quot;},
+                required = true,
+                description = &quot;The scope.\n&quot; +
+                        &quot;(default: '&quot; + DEFAULT_CLIENT_SCOPE + &quot;' for the Client;\n&quot; +
+                        &quot;          '&quot; + DEFAULT_RESOURCE_SERVER_SCOPE + &quot;' for the Resource Server)&quot;)
+        List&lt;String&gt; scope;
+
+        @Option(names = {&quot;-u&quot;, &quot;--aud&quot;},
+                required = true,
+                description = &quot;The audience.\n&quot; +
+                        &quot;(default: '&quot; + DEFAULT_CLIENT_AUD + &quot;' for the Client;\n&quot; +
+                        &quot;          '&quot; + DEFAULT_RESOURCE_SERVER_AUD + &quot;' for the Resource Server)&quot;)
+        List&lt;String&gt; aud;
+
+        @Option(names = {&quot;-x&quot;, &quot;--senderId&quot;},
+                required = true,
+                description = &quot;The Sender ID in HEX used for &quot; +
+                        &quot;the OSCORE Security Context with the Authorization Server.\n&quot; +
+                        &quot;(default: '&quot; + DEFAULT_CLIENT_SENDER_ID + &quot;' for the Client;\n&quot; +
+                        &quot;          '&quot; + DEFAULT_RESOURCE_SERVER_SENDER_ID + &quot;' for the Resource Server)&quot;)
+        String sId;
+
+        @Option(names = {&quot;-m&quot;, &quot;--mastersecret&quot;},
+                required = true,
+                description = &quot;The symmetric pre-shared key between &quot; +
+                        &quot;the Authorization Server and the peer. It is the master &quot; +
+                        &quot;secret used for the OSCORE Security Context.\n&quot; +
+                        &quot;(default: '&quot; + DEFAULT_CLIENT_MASTER_SECRET + &quot;' for the Client;\n&quot; +
+                        &quot;          '&quot; + DEFAULT_RESOURCE_SERVER_MASTER_SECRET + &quot;' for the Resource Server)&quot;)
+        String key;
+
+        @Option(names = {&quot;-k&quot;, &quot;--key&quot;},
+                required = false,
+                defaultValue = DEFAULT_RESOURCE_SERVER_TOKEN_PSK,
+                description = &quot;The symmetric pre-shared key between the Resource &quot; +
+                        &quot;Server and the Authorization Server. It is used by the &quot; +
+                        &quot;Authorization Server to protect the tokens for this &quot; +
+                        &quot;Resource Server.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        String tokenKey;
+    }
+
+<span class="nc" id="L169">    static class Peer {</span>
+        @Option(names = {&quot;-C&quot;, &quot;--Client&quot;},
+                required = true,
+                description = &quot;Add a new Client&quot;)
+        boolean isClient;
+
+        @Option(names = {&quot;-R&quot;, &quot;--Resourceserver&quot;},
+                required = true,
+                description = &quot;Add a new Resource Server&quot;)
+        boolean isResourceServer;
+    }
+
+<span class="nc" id="L181">    static class Args {</span>
+        @ArgGroup(exclusive = true, multiplicity = &quot;1&quot;)
+        Peer peer;
+
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        Opt opt;
+
+    }
+
+    @ArgGroup(exclusive = false, multiplicity = &quot;0..*&quot;)
+    List&lt;AceAS.Args&gt; args;
+
+    @ArgGroup(exclusive = false)
+    DhtArgs dhtArg;
+
+    static OneKey myAsymmKey;
+
+<span class="nc" id="L198">    private static CoapDBConnector db = null;</span>
+<span class="nc" id="L199">    private static OscoreAS as = null;</span>
+    private static PDP pdp;
+
+<span class="nc" id="L202">    private final static Map&lt;String, String&gt; peerNamesToIdentities = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L203">    private final static Map&lt;String, String&gt; peerIdentitiesToNames = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L204">    private final static Map&lt;String, String&gt; myIdentities = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L205">    private final static byte[] idContext = new byte[]{0x44};</span>
+
+<span class="nc" id="L207">    static String asName = &quot;AS&quot;;</span>
+<span class="nc" id="L208">    private final String asIdentity = buildOscoreIdentity(new byte[]{0x33}, idContext);</span>
+
+    private static Timer timer;
+
+<span class="nc" id="L212">    private static final File attributesDir = new File(Utils.getResourcePath(AceAS.class), &quot;attributes&quot;);</span>
+<span class="nc" id="L213">    private static final File policiesDir = new File(Utils.getResourcePath(AceAS.class), &quot;policies&quot;);</span>
+    private boolean isDhtEnabled;
+    private String dhtAddr;
+
+
+    //--- MAIN
+    public static void main(String[] args) {
+
+<span class="nc" id="L221">        int exitCode = new CommandLine(new AceAS()).execute(args);</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (exitCode != 0) {</span>
+<span class="nc" id="L223">            as.stop();</span>
+<span class="nc" id="L224">            System.exit(exitCode);</span>
+        }
+<span class="nc" id="L226">    }</span>
+
+
+    @Override
+    public Integer call() throws Exception {
+
+<span class="nc" id="L232">        Utils.createDir(attributesDir);</span>
+<span class="nc" id="L233">        Utils.createDir(policiesDir);</span>
+
+<span class="nc" id="L235">        parseNumAttributes();</span>
+<span class="nc" id="L236">        parseResources();</span>
+
+<span class="nc" id="L238">        DBHelper.setUpDB(dbUri);</span>
+<span class="nc" id="L239">        db = DBHelper.getCoapDBConnector();</span>
+
+<span class="nc" id="L241">        setupPDP();</span>
+
+<span class="nc" id="L243">        parseInputs();</span>
+
+<span class="nc" id="L245">        KissTime time = new KissTime();</span>
+
+<span class="nc" id="L247">        TrlConfig trlConfig = new TrlConfig(&quot;trl&quot;, 3, null, true);</span>
+
+<span class="nc" id="L249">        as = new OscoreAS(asName, db, pdp, time, myAsymmKey, &quot;token&quot;, &quot;introspect&quot;, trlConfig,</span>
+                CoAP.DEFAULT_COAP_PORT, null, false, (short) 1, true,
+                peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
+
+<span class="nc" id="L253">        as.start();</span>
+<span class="nc" id="L254">        System.out.println(&quot;Server starting&quot;);</span>
+        //as.stop();
+
+<span class="nc" id="L257">        timer = new Timer();</span>
+<span class="nc" id="L258">        timer.schedule(new AttributeChanger(&quot;thermometer-reachable.txt&quot;, &quot;changedValue&quot;),</span>
+                30000);// + (int) (Math.random() * 30000));
+
+<span class="nc" id="L261">        return 0;</span>
+    }
+
+    /**
+     * Stops the server
+     *
+     * @throws Exception
+     */
+    public static void stop() throws Exception {
+<span class="nc" id="L270">        as.stop();</span>
+<span class="nc" id="L271">        pdp.close();</span>
+<span class="nc" id="L272">        DBHelper.tearDownDB();</span>
+<span class="nc" id="L273">        System.out.println(&quot;Server stopped&quot;);</span>
+<span class="nc" id="L274">    }</span>
+
+
+    private void parseInputs() throws AceException {
+
+        List&lt;Args&gt; inputClients;
+        try {
+<span class="nc" id="L281">            inputClients = new ArrayList&lt;&gt;(this.args);</span>
+<span class="nc" id="L282">            inputClients.removeIf(c -&gt; c.peer.isResourceServer);</span>
+<span class="nc" id="L283">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L284">            inputClients = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L285">        }</span>
+
+        List&lt;Args&gt; inputResourceServers;
+        try {
+<span class="nc" id="L289">            inputResourceServers = new ArrayList&lt;&gt;(this.args);</span>
+<span class="nc" id="L290">            inputResourceServers.removeIf(r -&gt; r.peer.isClient);</span>
+<span class="nc" id="L291">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L292">            inputResourceServers = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L293">        }</span>
+
+<span class="nc" id="L295">        List&lt;Client&gt; clients = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (inputClients.isEmpty()) {</span>
+<span class="nc" id="L297">            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList&lt;String&gt;() {{</span>
+<span class="nc" id="L298">                add(DEFAULT_CLIENT_SCOPE);</span>
+<span class="nc" id="L299">            }},</span>
+<span class="nc" id="L300">                    new ArrayList&lt;String&gt;() {{</span>
+<span class="nc" id="L301">                        add(DEFAULT_CLIENT_AUD);</span>
+<span class="nc" id="L302">                    }}, DEFAULT_CLIENT_SENDER_ID,</span>
+                    DEFAULT_CLIENT_MASTER_SECRET));
+        }
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        for (Args c : inputClients) {</span>
+<span class="nc" id="L306">            clients.add(new Client(c.opt.name, c.opt.scope, c.opt.aud,</span>
+                    c.opt.sId, c.opt.key));
+<span class="nc" id="L308">        }</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        for (Client c : clients) {</span>
+<span class="nc" id="L310">            setupClient(c);</span>
+<span class="nc" id="L311">        }</span>
+
+<span class="nc" id="L313">        List&lt;ResourceServer&gt; resourceServers = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        if (inputResourceServers.isEmpty()) {</span>
+<span class="nc" id="L315">            resourceServers.add(new ResourceServer(DEFAULT_RESOURCE_SERVER_NAME,</span>
+                    DEFAULT_RESOURCE_SERVER_SCOPE, DEFAULT_RESOURCE_SERVER_AUD,
+                    DEFAULT_RESOURCE_SERVER_SENDER_ID, DEFAULT_RESOURCE_SERVER_MASTER_SECRET,
+                    DEFAULT_RESOURCE_SERVER_TOKEN_PSK));
+        }
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        for (Args r : inputResourceServers) {</span>
+
+            // check that all the options have been specified
+
+            // if the resource server name is specified within the audience, remove it
+            // (The AS automatically adds an audience with the resource server name for the resource server)
+<span class="nc bnc" id="L326" title="All 2 branches missed.">            if (r.opt.aud.get(0).contains(r.opt.name)) {</span>
+<span class="nc" id="L327">                r.opt.aud.set(0, r.opt.aud.get(0).replaceAll(r.opt.name, &quot;&quot;));</span>
+<span class="nc" id="L328">                r.opt.aud.set(0, r.opt.aud.get(0).trim().replaceAll(&quot; +&quot;, &quot; &quot;));</span>
+            }
+<span class="nc" id="L330">            resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope.get(0), r.opt.aud.get(0),</span>
+                    r.opt.sId, r.opt.key, r.opt.tokenKey));
+<span class="nc" id="L332">        }</span>
+<span class="nc bnc" id="L333" title="All 2 branches missed.">        for (ResourceServer r : resourceServers) {</span>
+<span class="nc" id="L334">            setupResourceServer(r);</span>
+<span class="nc" id="L335">        }</span>
+
+        // parse DHT arguments
+        try {
+<span class="nc" id="L339">            isDhtEnabled = this.dhtArg.isDhtEnabled;</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">            if (isDhtEnabled) {</span>
+                try {
+<span class="nc" id="L342">                    dhtAddr = this.dhtArg.dhtUri;</span>
+<span class="nc" id="L343">                } catch (NullPointerException e) {</span>
+<span class="nc" id="L344">                    dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L345">                }</span>
+            }
+<span class="nc" id="L347">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L348">            isDhtEnabled = false;</span>
+<span class="nc" id="L349">            dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L350">        }</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">        if (isDhtEnabled) {</span>
+            // Possibly set up connection to the DHT for sending logging statements
+<span class="nc" id="L353">            System.out.println(&quot;Connecting to the DHT for logging.&quot;);</span>
+<span class="nc" id="L354">            DhtLogger.setLogging(true);</span>
+<span class="nc" id="L355">            DhtLogger.establishConnection(dhtAddr);</span>
+        }
+
+<span class="nc" id="L358">    }</span>
+
+    private void parseNumAttributes() {
+<span class="nc bnc" id="L361" title="All 2 branches missed.">        if (numAttributes &lt; 1) {</span>
+<span class="nc" id="L362">            System.out.println(&quot;Number of attributes &quot; + numAttributes + &quot; not supported.\n&quot; +</span>
+                    &quot;Setting it to the minimum allowed, i.e., 1&quot;);
+<span class="nc" id="L364">            numAttributes = 1;</span>
+        }
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        if (numAttributes &gt; 50) {</span>
+<span class="nc" id="L367">            System.out.println(&quot;Number of attributes &quot; + numAttributes + &quot; not supported.\n&quot; +</span>
+                    &quot;Setting it to the maximum allowed, i.e., 50&quot;);
+<span class="nc" id="L369">            numAttributes = 50;</span>
+        }
+<span class="nc" id="L371">    }</span>
+
+    private void parseResources() {
+<span class="nc bnc" id="L374" title="All 4 branches missed.">        if (resources == null || resources.isEmpty()) {</span>
+<span class="nc" id="L375">            resources = DEFAULT_RESOURCES;</span>
+        } else {
+            // validate input
+        }
+<span class="nc" id="L379">    }</span>
+
+    private void setupResourceServer(ResourceServer r) throws AceException {
+
+<span class="nc" id="L383">        db.addRS(r.getName(), r.getProfiles(), r.getScopeSet(), r.getAudSet(),</span>
+<span class="nc" id="L384">                r.getKeyTypes(), r.getTokenTypes(), r.getCose(), r.getExpiration(),</span>
+<span class="nc" id="L385">                r.getSharedPsk(), r.getTokenPsk(), null);</span>
+<span class="nc" id="L386">        addIdentity(r.getName(), r.getsId());</span>
+<span class="nc" id="L387">        pdp.addIntrospectAccess(r.getName());</span>
+<span class="nc" id="L388">    }</span>
+
+    private void setupClient(Client c) throws AceException {
+
+<span class="nc" id="L392">        db.addClient(c.getName(), c.getProfiles(), null, null,</span>
+<span class="nc" id="L393">                c.getKeyTypes(), c.getSharedPsk(), null);</span>
+<span class="nc" id="L394">        addIdentity(c.getName(), c.getsId());</span>
+<span class="nc" id="L395">        pdp.addTokenAccess(c.getName());</span>
+
+<span class="nc bnc" id="L397" title="All 2 branches missed.">        for (int i = 0; i &lt; c.getScope().size(); i++) {</span>
+<span class="nc" id="L398">            String scope = c.getScope().get(i);</span>
+<span class="nc" id="L399">            List&lt;String&gt; scopes = new ArrayList&lt;&gt;(Arrays.asList(scope.split(&quot; &quot;)));</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">            for (String subScope : scopes) {</span>
+<span class="nc bnc" id="L401" title="All 2 branches missed.">                if (pdp instanceof UcsHelper) {</span>
+<span class="nc" id="L402">                    String res = subScope.substring(subScope.indexOf(&quot;_&quot;) + 1);</span>
+<span class="nc" id="L403">                    String policySuffix = &quot;&quot;;</span>
+<span class="nc bnc" id="L404" title="All 4 branches missed.">                    if (res.equals(&quot;temp&quot;) &amp;&amp; numAttributes &gt; 1) {</span>
+<span class="nc" id="L405">                        policySuffix = &quot;_&quot; + numAttributes + &quot;_attributes&quot;;</span>
+                    }
+//                    if (res.equals(&quot;helloWorld&quot;) &amp;&amp; numAttributes &gt; 1) {
+//                        policySuffix = &quot;_&quot; + numAttributes + &quot;_attributes&quot;;
+//                    }
+<span class="nc" id="L410">                    String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
+                            &quot;policy-templates&quot; + File.separator + &quot;policy_template_&quot; + res + policySuffix));
+<span class="nc" id="L412">                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);</span>
+<span class="nc" id="L413">                } else {</span>
+<span class="nc" id="L414">                    pdp.addAccess(c.getName(), c.getAud().get(i), subScope);</span>
+                }
+<span class="nc" id="L416">            }</span>
+        }
+<span class="nc" id="L418">    }</span>
+
+
+    private void addIdentity(String peerName, byte[] peerIdentity) {
+
+<span class="nc" id="L423">        String peerIdentityStr = buildOscoreIdentity(peerIdentity, idContext);</span>
+<span class="nc" id="L424">        peerNamesToIdentities.put(peerName, peerIdentityStr);</span>
+<span class="nc" id="L425">        peerIdentitiesToNames.put(peerIdentityStr, peerName);</span>
+<span class="nc" id="L426">        myIdentities.put(peerName, asIdentity);</span>
+<span class="nc" id="L427">    }</span>
+
+    private String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
+
+<span class="nc bnc" id="L431" title="All 2 branches missed.">        if (senderId == null)</span>
+<span class="nc" id="L432">            return null;</span>
+<span class="nc" id="L433">        String identity = &quot;&quot;;</span>
+
+<span class="nc bnc" id="L435" title="All 2 branches missed.">        if (contextId != null) {</span>
+<span class="nc" id="L436">            identity += Base64.getEncoder().encodeToString(contextId);</span>
+<span class="nc" id="L437">            identity += &quot;:&quot;;</span>
+        }
+<span class="nc" id="L439">        identity += Base64.getEncoder().encodeToString(senderId);</span>
+
+<span class="nc" id="L441">        return identity;</span>
+
+    }
+
+
+    private void setupPDP() throws AceException {
+
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        if (isKissPDP) {</span>
+<span class="nc" id="L449">            pdp = new KissPDP(db);</span>
+        } else {
+
+<span class="nc" id="L452">            restoreAttributesValue();</span>
+
+<span class="nc" id="L454">            List&lt;String&gt; allowedResources = new ArrayList&lt;&gt;(Arrays.asList(resources.split(&quot; &quot;)));</span>
+
+<span class="nc" id="L456">            UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L457">            List&lt;PipProperties&gt; pipPropertiesList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Temp&quot;)) {</span>
+<span class="nc" id="L460">                pipReader.addAttribute(</span>
+                        &quot;urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable&quot;,
+<span class="nc" id="L462">                        Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L463">                        DataType.STRING.toString(),</span>
+<span class="nc" id="L464">                        attributesDir.getAbsolutePath() + File.separator +  &quot;thermometer-reachable.txt&quot;);</span>
+<span class="nc" id="L465">                pipReader.setRefreshRate(10L);</span>
+<span class="nc" id="L466">                pipPropertiesList.add(pipReader);</span>
+
+                //add additional PIPs as specified by the -N option
+<span class="nc bnc" id="L469" title="All 2 branches missed.">                for (int i = 2; i &lt;= numAttributes; i++) {</span>
+<span class="nc" id="L470">                    pipPropertiesList.add(preparePIPReader(&quot;attribute-temp&quot; + i));</span>
+                }
+            }
+
+<span class="nc bnc" id="L474" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Humidity&quot;)) {</span>
+                // used only for warm up, if the Client uses the -W option
+<span class="nc" id="L476">                pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L477">                pipReader.addAttribute(</span>
+                        &quot;urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable&quot;,
+<span class="nc" id="L479">                        Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L480">                        DataType.STRING.toString(),</span>
+<span class="nc" id="L481">                        attributesDir.getAbsolutePath() + File.separator +  &quot;hygrometer-reachable.txt&quot;);</span>
+<span class="nc" id="L482">                pipPropertiesList.add(pipReader);</span>
+            }
+
+<span class="nc bnc" id="L485" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Brightness&quot;)) {</span>
+<span class="nc" id="L486">                pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L487">                pipReader.addAttribute(</span>
+                        &quot;urn:oasis:names:tc:xacml:3.0:environment:screen-reachable&quot;,
+<span class="nc" id="L489">                        Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L490">                        DataType.STRING.toString(),</span>
+<span class="nc" id="L491">                        attributesDir.getAbsolutePath() + File.separator + &quot;screen-reachable.txt&quot;);</span>
+<span class="nc" id="L492">                pipPropertiesList.add(pipReader);</span>
+            }
+
+<span class="nc bnc" id="L495" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Volume&quot;)) {</span>
+<span class="nc" id="L496">                pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L497">                pipReader.addAttribute(</span>
+                        &quot;urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable&quot;,
+<span class="nc" id="L499">                        Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L500">                        DataType.STRING.toString(),</span>
+<span class="nc" id="L501">                        attributesDir.getAbsolutePath() + File.separator +  &quot;speaker-reachable.txt&quot;);</span>
+<span class="nc" id="L502">                pipPropertiesList.add(pipReader);</span>
+            }
+
+<span class="nc bnc" id="L505" title="All 2 branches missed.">            if (allowedResources.contains(&quot;HelloWorld&quot;)) {</span>
+<span class="nc" id="L506">                pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L507">                pipReader.addAttribute(</span>
+                        &quot;urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel&quot;,
+<span class="nc" id="L509">                        Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L510">                        DataType.STRING.toString(),</span>
+<span class="nc" id="L511">                        attributesDir.getAbsolutePath() + File.separator + &quot;welcome-led-panel.txt&quot;);</span>
+<span class="nc" id="L512">                pipPropertiesList.add(pipReader);</span>
+            }
+
+            // code to add a PIPReader monitoring the role of the subject
+//            pipReader = new UcsPipReaderProperties();
+//            pipReader.addAttribute(
+//                    &quot;urn:oasis:names:tc:xacml:1.0:subject:role&quot;,
+//                    Category.SUBJECT.toString(),
+//                    DataType.STRING.toString(),
+//                    attributesDir.getAbsolutePath() + File.separator + &quot;role.txt&quot;);
+//            pipPropertiesList.add(pipReader);
+
+//            for (int i = 2; i &lt;= numAttributes; i++) {
+//                pipPropertiesList.add(preparePIPReader(&quot;attribute-helloWorld&quot; + i));
+//            }
+
+<span class="nc" id="L528">            UcsPapProperties papProperties = new UcsPapProperties(policiesDir.getAbsolutePath());</span>
+
+<span class="nc" id="L530">            String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
+                    &quot;policy-templates&quot; + File.separator + &quot;policy_template&quot;));
+
+<span class="nc" id="L533">            pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);</span>
+        }
+<span class="nc" id="L535">    }</span>
+
+    private void restoreAttributesValue() {
+
+        // restore the value of the attributes
+<span class="nc" id="L540">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                + &quot;hygrometer-reachable.txt&quot;, &quot;y&quot;);
+
+<span class="nc" id="L543">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                + &quot;screen-reachable.txt&quot;, &quot;y&quot;);
+
+<span class="nc" id="L546">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                + &quot;speaker-reachable.txt&quot;, &quot;y&quot;);
+
+<span class="nc" id="L549">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                + &quot;thermometer-reachable.txt&quot;, &quot;y&quot;);
+
+<span class="nc" id="L552">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                + &quot;welcome-led-panel.txt&quot;, &quot;Hi!&quot;);
+
+//        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+//                + &quot;role.txt&quot;,
+//                &quot;ClientB maintainer\n&quot;
+//                        + &quot;ClientC developer\n&quot;
+//                        + &quot;ClientA maintainer\n&quot;
+//                        + &quot;ClientD admin&quot;);
+
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        for (int i = 2; i &lt;= numAttributes; i++) {</span>
+<span class="nc" id="L563">            setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+                    + &quot;attribute-temp&quot; + i + &quot;.txt&quot;, &quot;y&quot;);
+        }
+
+//        for (int i = 2; i &lt;= numAttributes; i++) {
+//            setAttributeValue(attributesDir.getAbsolutePath() + File.separator
+//                    + &quot;attribute-helloWorld&quot; + i + &quot;.txt&quot;, &quot;y&quot;);
+//        }
+<span class="nc" id="L571">    }</span>
+
+    public static UcsPipReaderProperties preparePIPReader(String attribute) {
+<span class="nc" id="L574">        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
+<span class="nc" id="L575">        pipReader.addAttribute(</span>
+                &quot;urn:oasis:names:tc:xacml:3.0:environment:&quot; + attribute,
+<span class="nc" id="L577">                Category.ENVIRONMENT.toString(),</span>
+<span class="nc" id="L578">                DataType.STRING.toString(),</span>
+<span class="nc" id="L579">                attributesDir.getAbsolutePath() + File.separator + attribute + &quot;.txt&quot;);</span>
+<span class="nc" id="L580">        return pipReader;</span>
+    }
+
+    public static void setAttributeValue(String fileName, String value) {
+
+<span class="nc" id="L585">        File file = new File(fileName);</span>
+<span class="nc" id="L586">        FileWriter fw = null;</span>
+        try {
+<span class="nc" id="L588">            fw = new FileWriter(file);</span>
+<span class="nc" id="L589">            fw.write(value);</span>
+<span class="nc" id="L590">            fw.close();</span>
+<span class="nc" id="L591">        } catch (IOException e) {</span>
+<span class="nc" id="L592">            e.printStackTrace();</span>
+<span class="nc" id="L593">        }</span>
+<span class="nc" id="L594">    }</span>
+
+    /**
+     * Change the attribute value within the file identified by fileName.
+     * This triggers the possible revocation of tokens for the policies
+     * that include that attribute.
+     */
+    public static class AttributeChanger extends TimerTask {
+
+        private final String fileName;
+        private final String value;
+
+<span class="nc" id="L606">        public AttributeChanger(String fileName, String value) {</span>
+<span class="nc" id="L607">            this.fileName = fileName;</span>
+<span class="nc" id="L608">            this.value = value;</span>
+<span class="nc" id="L609">        }</span>
+
+        public void run() {
+<span class="nc" id="L612">            File file = new File(attributesDir.getAbsolutePath() + File.separator</span>
+                    + this.fileName);
+<span class="nc" id="L614">            FileWriter fw = null;</span>
+            try {
+<span class="nc" id="L616">                fw = new FileWriter(file);</span>
+<span class="nc" id="L617">                fw.write(this.value);</span>
+<span class="nc" id="L618">                fw.close();</span>
+<span class="nc" id="L619">            } catch (IOException e) {</span>
+<span class="nc" id="L620">                e.printStackTrace();</span>
+<span class="nc" id="L621">            }</span>
+<span class="nc" id="L622">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

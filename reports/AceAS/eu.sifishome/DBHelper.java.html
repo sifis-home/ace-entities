@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DBHelper.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">AceAS</a> &gt; <a href="index.source.html" class="el_package">eu.sifishome</a> &gt; <span class="el_source">DBHelper.java</span></div><h1>DBHelper.java</h1><pre class="source lang-java linenums">package eu.sifishome;
+
+import se.sics.ace.AceException;
+import se.sics.ace.coap.as.CoapDBConnector;
+import se.sics.ace.examples.MySQLDBAdapter;
+import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.examples.SQLDBAdapter;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.sql.SQLException;
+
+/**
+ * Helper class to set up databases for tests.
+ *
+ * @author Sebastian Echeverria and Marco Tiloca and Marco Rasori
+ */
+<span class="nc" id="L22">public class DBHelper {</span>
+    /**
+     * Easy place to change which DB adapter wants to be used for all tests.
+     */
+<span class="nc" id="L26">    private static SQLDBAdapter dbAdapter = new MySQLDBAdapter();</span>
+
+<span class="nc" id="L28">    private static String testUsername = &quot;testuser&quot;;</span>
+<span class="nc" id="L29">    private static String testPassword = &quot;testpwd&quot;;</span>
+<span class="nc" id="L30">    private static String testDBName = &quot;testdb&quot;;</span>
+
+<span class="nc" id="L32">    private static String dbAdminUser = null;</span>
+<span class="nc" id="L33">    private static String dbAdminPwd = null;</span>
+<span class="nc" id="L34">    private static String dbUrl = null;</span>
+
+    protected static void restoreDefaultClassFields() {
+<span class="nc" id="L37">        dbAdapter = new MySQLDBAdapter();</span>
+
+<span class="nc" id="L39">        testUsername = &quot;testuser&quot;;</span>
+<span class="nc" id="L40">        testPassword = &quot;testpwd&quot;;</span>
+<span class="nc" id="L41">        testDBName = &quot;testdb&quot;;</span>
+
+<span class="nc" id="L43">        dbAdminUser = null;</span>
+<span class="nc" id="L44">        dbAdminPwd = null;</span>
+<span class="nc" id="L45">        dbUrl = null;</span>
+<span class="nc" id="L46">    }</span>
+
+    /**
+     * Sets up the DB using the current default adapter.
+     *
+     * @throws AceException if acting on the database fails
+     * @throws IOException  if loading admin information fails
+     */
+    public static void setUpDB(String dbUrl) throws AceException, IOException {
+        // First load the DB admin username and password from an external file.
+        try {
+<span class="nc" id="L57">            loadAdminLoginInformation();</span>
+<span class="nc" id="L58">        } catch (IOException e) {</span>
+            // if the dbUrl is not empty, later we try to load admin username and password from the URL
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            if (dbUrl == null) {</span>
+<span class="nc" id="L61">                throw new IOException(e.getMessage());</span>
+            }
+<span class="nc" id="L63">        }</span>
+
+        // Parse the DB url.
+        // If the url includes db credentials, these will be used,
+        // and they possibly override those loaded from the db.pwd file
+        try {
+<span class="nc" id="L69">            parseDbUrl(dbUrl);</span>
+<span class="nc" id="L70">        } catch (URISyntaxException e) {</span>
+<span class="nc" id="L71">            throw new AceException(e.getMessage());</span>
+<span class="nc" id="L72">        }</span>
+
+<span class="nc bnc" id="L74" title="All 4 branches missed.">        if (dbAdminUser == null || dbAdminPwd == null) {</span>
+<span class="nc" id="L75">            throw new AceException(&quot;Cannot retrieve admin username and password for the database&quot;);</span>
+        }
+
+        // Set parameters for the DB.
+<span class="nc" id="L79">        dbAdapter.setParams(testUsername, testPassword, testDBName, DBHelper.dbUrl);</span>
+
+        // In case database and/or user already existed.
+<span class="nc" id="L82">        SQLConnector.wipeDatabase(dbAdapter, dbAdminUser, dbAdminPwd);</span>
+
+        // Create the DB and user for the tests.
+<span class="nc" id="L85">        SQLConnector.createUser(dbAdapter, dbAdminUser, dbAdminPwd);</span>
+<span class="nc" id="L86">        SQLConnector.createDB(dbAdapter, dbAdminUser, dbAdminPwd);</span>
+<span class="nc" id="L87">    }</span>
+
+    /**
+     * @return the SQLConnector instance
+     * @throws SQLException if an error occurs retrieving the database instance
+     */
+    public static SQLConnector getSQLConnector() throws SQLException {
+        // Get a connection to the test DB.
+<span class="nc" id="L95">        return SQLConnector.getInstance(dbAdapter);</span>
+    }
+
+    /**
+     * @return the CoapDBConnector instance
+     * @throws SQLException if an error occurs when retrieving the CoapDBConnector istance
+     */
+    public static CoapDBConnector getCoapDBConnector() throws SQLException {
+        // Get a connection to the test DB.
+<span class="nc" id="L104">        return CoapDBConnector.getInstance(dbAdapter);</span>
+    }
+
+    /**
+     * Destroy the test DB with the default adapter.
+     *
+     * @throws AceException if an error occurs when wiping the database
+     */
+    public static void tearDownDB() throws AceException {
+<span class="nc" id="L113">        dbAdapter.setParams(testUsername, testPassword, testDBName, null);</span>
+<span class="nc" id="L114">        SQLConnector.wipeDatabase(dbAdapter, dbAdminUser, dbAdminPwd);</span>
+<span class="nc" id="L115">    }</span>
+
+    /**
+     * Loads the admin username and password form an external file.
+     *
+     * @throws IOException if an error occurs when retrieving the file with the credentials for the database
+     */
+    private static void loadAdminLoginInformation() throws IOException {
+<span class="nc" id="L123">        try (BufferedReader br = new BufferedReader(new FileReader(</span>
+<span class="nc" id="L124">                Utils.getResourcePath(AceAS.class) + File.separator + &quot;db.pwd&quot;))) {</span>
+<span class="nc" id="L125">            int readLines = 0;</span>
+<span class="nc" id="L126">            StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L127">            String line = br.readLine();</span>
+<span class="nc bnc" id="L128" title="All 4 branches missed.">            while (line != null &amp;&amp; readLines &lt; 2) {</span>
+<span class="nc" id="L129">                sb.delete(0, sb.length());</span>
+<span class="nc" id="L130">                sb.append(line);</span>
+<span class="nc" id="L131">                sb.append(System.lineSeparator());</span>
+
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                if (readLines == 0) {</span>
+<span class="nc" id="L134">                    dbAdminUser = sb.toString().replace(System.getProperty(&quot;line.separator&quot;), &quot;&quot;);</span>
+                }
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                if (readLines == 1) {</span>
+<span class="nc" id="L137">                    dbAdminPwd = sb.toString().replace(System.getProperty(&quot;line.separator&quot;), &quot;&quot;);</span>
+                }
+<span class="nc" id="L139">                readLines++;</span>
+<span class="nc" id="L140">                line = br.readLine();</span>
+            }
+        }
+<span class="nc" id="L143">    }</span>
+
+    /**
+     * Parse the database url provided as input.
+     * This method returns null if the string passed as argument is null.
+     * This method accepts only urls that start with &quot;jdbc:mysql://&quot; and ignores
+     * the path of the url, if any.
+     * It returns a string in the form &quot;jdbc:mysql://host:port&quot;. If the port is not
+     * specified in the provided url, it places the default port (3306) in the
+     * returned string
+     *
+     * @param url the url of the database
+     * @throws URISyntaxException If the given string violates RFC 2396
+     */
+    private static void parseDbUrl(String url) throws URISyntaxException, AceException {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (url == null) {</span>
+            // using default db Url
+<span class="nc" id="L160">            return;</span>
+        }
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        if (!url.startsWith(&quot;jdbc:mysql://&quot;)) {</span>
+<span class="nc" id="L163">            throw new IllegalArgumentException(&quot;Wrong database URL. The URL must start with \&quot;jdbc:mysql://\&quot;&quot;);</span>
+        }
+        //strip off the jdbc: part
+<span class="nc" id="L166">        url = url.substring(5);</span>
+
+<span class="nc" id="L168">        URI uri = new URI(url);</span>
+<span class="nc" id="L169">        String host = uri.getHost();</span>
+<span class="nc" id="L170">        int port = uri.getPort();</span>
+
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        if (host == null) {</span>
+<span class="nc" id="L173">            throw new AceException(&quot;Wrong database URL. The host cannot be parsed&quot;);</span>
+        }
+
+        // if the port is not defined, use the default port (3306)
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        if (port != -1) {</span>
+<span class="nc" id="L178">            dbUrl = &quot;jdbc:mysql://&quot; + host + &quot;:&quot; + port;</span>
+        } else {
+<span class="nc" id="L180">            dbUrl = &quot;jdbc:mysql://&quot; + host + &quot;:3306&quot;;</span>
+        }
+
+<span class="nc" id="L183">        overrideCredentials(uri);</span>
+<span class="nc" id="L184">    }</span>
+
+    /**
+     * Set admin username and password, if provided.
+     * This method possibly overrides the admin credentials provided within the db.pwd file.
+     *
+     * @param uri the URI
+     * @throws AceException if some error occurs during parsing of the URI
+     */
+    private static void overrideCredentials(URI uri) throws AceException {
+
+<span class="nc" id="L195">        String credentials = uri.getUserInfo();</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (credentials == null) {</span>
+<span class="nc" id="L197">            return;</span>
+        }
+<span class="nc" id="L199">        String[] splitCredentials = credentials.split(&quot;:&quot;);</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (splitCredentials.length &gt; 2) {</span>
+<span class="nc" id="L201">            throw new AceException(&quot;Wrong database URL. User info cannot be parsed. Too many colons&quot;);</span>
+        }
+
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        if (splitCredentials[0].equals(&quot;&quot;)) {</span>
+<span class="nc" id="L205">            throw new AceException(&quot;Wrong database URL. Username cannot be empty&quot;);</span>
+        }
+<span class="nc" id="L207">        dbAdminUser = splitCredentials[0];</span>
+
+        // if password is present
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (splitCredentials.length == 2) {</span>
+<span class="nc" id="L211">            dbAdminPwd = splitCredentials[1];</span>
+        } else {
+<span class="nc" id="L213">            dbAdminPwd = &quot;&quot;;</span>
+        }
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        if (dbAdminPwd.equals(&quot;&quot;)) {</span>
+<span class="nc" id="L216">            System.out.println(&quot;Warning: no password for user &quot; + dbAdminUser + &quot; was specified. &quot; +</span>
+                    &quot;Using an empty password...&quot;);
+        }
+
+<span class="nc" id="L220">        System.out.println(&quot;Credentials loaded from the provided database URI&quot;);</span>
+<span class="nc" id="L221">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

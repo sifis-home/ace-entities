@@ -1,0 +1,18 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+AceAS,eu.sifishome,AceAS.Opt,3,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome,DBHelper,306,0,32,0,84,0,26,0,10,0
+AceAS,eu.sifishome,AceAS.Peer,3,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome,AceAS.new ArrayList() {...},10,0,0,0,3,0,1,0,1,0
+AceAS,eu.sifishome,AceAS.new ArrayList() {...},10,0,0,0,3,0,1,0,1,0
+AceAS,eu.sifishome,AceAS.AttributeChanger,43,0,0,0,13,0,2,0,2,0
+AceAS,eu.sifishome,AceAS.DhtArgs,6,0,0,0,2,0,1,0,1,0
+AceAS,eu.sifishome,AceAS,1073,0,58,0,202,0,47,0,18,0
+AceAS,eu.sifishome,AceAS.Args,3,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,Client,201,0,12,0,52,0,24,0,18,0
+AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,Client.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},11,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,Client.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},15,0,0,0,2,0,1,0,1,0
+AceAS,eu.sifishome.peers,ResourceServer,252,0,12,0,62,0,30,0,24,0
