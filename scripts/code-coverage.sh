@@ -3,14 +3,26 @@
 # Compile Jacoco code coverage reports
 echo "*** Collecting Jacoco code coverage reports ***"
 
-mkdir -p jacoco/AceAS
-cp -r AceAS/target/site/jacoco/* jacoco/AceAS/
+if [[ -d AceAS/target/site/jacoco ]]
+then
+    mkdir -p jacoco/AceAS
+    cp -r AceAS/target/site/jacoco/* jacoco/AceAS/
+fi
 
-mkdir -p jacoco/AceRS
-cp -r AceRS/target/site/jacoco/* jacoco/AceRS/
+if [[ -d AceRS/target/site/jacoco ]]
+then
+    mkdir -p jacoco/AceRS
+    cp -r AceRS/target/site/jacoco/* jacoco/AceRS/
+fi
 
-mkdir -p jacoco/AceClient
-cp -r AceClient/target/site/jacoco/* jacoco/AceClient/
+if [[ -d AceClient/target/site/jacoco ]]
+then
+    mkdir -p jacoco/AceClient
+    cp -r AceClient/target/site/jacoco/* jacoco/AceClient/
+fi
 
-mkdir -p jacoco/AceClientDht
-cp -r AceClientDht/target/site/jacoco/* jacoco/AceClientDht/
+if [[ -d AceClientDht/target/site/jacoco ]]
+then
+    mkdir -p jacoco/AceClientDht
+    cp -r AceClientDht/target/site/jacoco/* jacoco/AceClientDht/
+fi
