@@ -26,3 +26,9 @@ then
     mkdir -p jacoco/AceClientDht
     cp -r AceClientDht/target/site/jacoco/* jacoco/AceClientDht/
 fi
+
+if [[ -d utils/target/site/jacoco ]]
+then
+    mkdir -p jacoco/utils
+    cp -r utils/target/site/jacoco/* jacoco/utils/
+fi
