@@ -16,12 +16,11 @@ jobs:
       matrix:
         java-version: [
           '8.0.x',
-#          '9.0.x',
-#          '11.0.x',
-#          '12.0.x',
-#          '13.0.x',
-#          '14.0.x',
-#          '15.0.x',
+          '11.0.x',
+          '12.0.x',
+          '13.0.x',
+          '14.0.x',
+          '15.0.x',
         ]
 
     steps:
@@ -41,16 +40,15 @@ jobs:
       - name: Package ACE entities
         run: |
           ./scripts/build-ace-entities.sh --with-mysql
-#          ./code-coverage.sh
 
-#      - name: Deploy Jacoco code coverage reports to gh-pages
-#        uses: JamesIves/github-pages-deploy-action@v4
-#        if: ${{ matrix.java-version == '8.0.x' }}
-#        with:
-#          clean: true
-#          folder: jacoco
-#          target-folder: reports
-#          branch: gh-pages
+      - name: Deploy Jacoco code coverage reports to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        if: ${{ matrix.java-version == '8.0.x' }}
+        with:
+          clean: true
+          folder: target/site/jacoco
+          target-folder: reports
+          branch: gh-pages
 
   
   # Build files necessary for building Docker Images (Dockerfiles and Contexts)
