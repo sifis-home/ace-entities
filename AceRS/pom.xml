@@ -50,7 +50,7 @@
                             <goal>copy-dependencies</goal>
                         </goals>
                         <configuration>
-                            <outputDirectory>${maven.multiModuleProjectDirectory}/lib</outputDirectory>
+                            <outputDirectory>${maven.multiModuleProjectDirectory}/apps/lib</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
