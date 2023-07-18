@@ -7,14 +7,14 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 
 public class VolumeResource extends CoapResource {
 
-<span class="nc" id="L10">    String volStr = &quot;30%&quot;;</span>
+<span class="fc" id="L10">    String volStr = &quot;30%&quot;;</span>
 
     public VolumeResource() {
         // set resource identifier
-<span class="nc" id="L14">        super(&quot;volume&quot;);</span>
+<span class="fc" id="L14">        super(&quot;volume&quot;);</span>
         // set display name
-<span class="nc" id="L16">        getAttributes().setTitle(&quot;Volume Resource&quot;);</span>
-<span class="nc" id="L17">    }</span>
+<span class="fc" id="L16">        getAttributes().setTitle(&quot;Volume Resource&quot;);</span>
+<span class="fc" id="L17">    }</span>
 
     @Override
     public void handleGET(CoapExchange exchange) {

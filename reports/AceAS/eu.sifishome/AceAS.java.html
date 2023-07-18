@@ -38,6 +38,8 @@ import picocli.CommandLine.ArgGroup;
 import eu.sifishome.peers.Client;
 import eu.sifishome.peers.ResourceServer;
 
+import static java.lang.Thread.sleep;
+
 /**
  * Authorization Server to test with AceClient and AceRS
  *
@@ -49,7 +51,7 @@ import eu.sifishome.peers.ResourceServer;
         version = &quot;1.0&quot;,
         description = &quot;Runs the ACE Authorization Server.\n&quot; +
                 &quot;The default PDP is the UCS&quot;)
-<span class="nc" id="L52">public class AceAS implements Callable&lt;Integer&gt; {</span>
+<span class="fc" id="L54">public class AceAS implements Callable&lt;Integer&gt; {</span>
 
     private final static String DEFAULT_CLIENT_NAME = &quot;ClientA&quot;;
     private final static String DEFAULT_RESOURCE_SERVER_NAME = &quot;rs1&quot;;
@@ -82,8 +84,8 @@ import eu.sifishome.peers.ResourceServer;
                     &quot;(default: ${DEFAULT-VALUE})\n&quot;)
     private String dbUri;
 
-<span class="nc" id="L85">    static class DhtArgs {</span>
-<span class="nc" id="L86">        @Option(names = {&quot;-D&quot;, &quot;--dht&quot;},</span>
+<span class="nc" id="L87">    static class DhtArgs {</span>
+<span class="nc" id="L88">        @Option(names = {&quot;-D&quot;, &quot;--dht&quot;},</span>
                 required = true,
                 description = &quot;Enable DHT.\n&quot;)
         boolean isDhtEnabled = false;
@@ -103,7 +105,7 @@ import eu.sifishome.peers.ResourceServer;
                     &quot;(default: UCS)\n&quot;)
     private boolean isKissPDP;
 
-<span class="nc" id="L106">    @Option(names = {&quot;-N&quot;, &quot;--numberOfAttributes&quot;},</span>
+<span class="fc" id="L108">    @Option(names = {&quot;-N&quot;, &quot;--numberOfAttributes&quot;},</span>
             required = false,
             description = &quot;Number of mutable attributes of the policies containing 'r_temp' and 'r_helloWorld' &quot; +
                     &quot;subscopes.&quot;)
@@ -116,7 +118,7 @@ import eu.sifishome.peers.ResourceServer;
                     &quot;(default: '&quot; + DEFAULT_RESOURCES + &quot;')&quot;)
     String resources;
 
-<span class="nc" id="L119">    static class Opt {</span>
+<span class="fc" id="L121">    static class Opt {</span>
         @Option(names = {&quot;-n&quot;, &quot;--name&quot;},
                 required = true,
                 description = &quot;The peer name.\n&quot; +
@@ -166,7 +168,7 @@ import eu.sifishome.peers.ResourceServer;
         String tokenKey;
     }
 
-<span class="nc" id="L169">    static class Peer {</span>
+<span class="fc" id="L171">    static class Peer {</span>
         @Option(names = {&quot;-C&quot;, &quot;--Client&quot;},
                 required = true,
                 description = &quot;Add a new Client&quot;)
@@ -178,7 +180,7 @@ import eu.sifishome.peers.ResourceServer;
         boolean isResourceServer;
     }
 
-<span class="nc" id="L181">    static class Args {</span>
+<span class="fc" id="L183">    static class Args {</span>
         @ArgGroup(exclusive = true, multiplicity = &quot;1&quot;)
         Peer peer;
 
@@ -195,22 +197,22 @@ import eu.sifishome.peers.ResourceServer;
 
     static OneKey myAsymmKey;
 
-<span class="nc" id="L198">    private static CoapDBConnector db = null;</span>
-<span class="nc" id="L199">    private static OscoreAS as = null;</span>
+<span class="fc" id="L200">    private static CoapDBConnector db = null;</span>
+<span class="fc" id="L201">    private static OscoreAS as = null;</span>
     private static PDP pdp;
 
-<span class="nc" id="L202">    private final static Map&lt;String, String&gt; peerNamesToIdentities = new HashMap&lt;&gt;();</span>
-<span class="nc" id="L203">    private final static Map&lt;String, String&gt; peerIdentitiesToNames = new HashMap&lt;&gt;();</span>
-<span class="nc" id="L204">    private final static Map&lt;String, String&gt; myIdentities = new HashMap&lt;&gt;();</span>
-<span class="nc" id="L205">    private final static byte[] idContext = new byte[]{0x44};</span>
+<span class="fc" id="L204">    private final static Map&lt;String, String&gt; peerNamesToIdentities = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L205">    private final static Map&lt;String, String&gt; peerIdentitiesToNames = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L206">    private final static Map&lt;String, String&gt; myIdentities = new HashMap&lt;&gt;();</span>
+<span class="fc" id="L207">    private final static byte[] idContext = new byte[]{0x44};</span>
 
-<span class="nc" id="L207">    static String asName = &quot;AS&quot;;</span>
-<span class="nc" id="L208">    private final String asIdentity = buildOscoreIdentity(new byte[]{0x33}, idContext);</span>
+<span class="fc" id="L209">    static String asName = &quot;AS&quot;;</span>
+<span class="fc" id="L210">    private final String asIdentity = buildOscoreIdentity(new byte[]{0x33}, idContext);</span>
 
     private static Timer timer;
 
-<span class="nc" id="L212">    private static final File attributesDir = new File(Utils.getResourcePath(AceAS.class), &quot;attributes&quot;);</span>
-<span class="nc" id="L213">    private static final File policiesDir = new File(Utils.getResourcePath(AceAS.class), &quot;policies&quot;);</span>
+<span class="fc" id="L214">    private static final File attributesDir = new File(Utils.getResourcePath(AceAS.class), &quot;attributes&quot;);</span>
+<span class="fc" id="L215">    private static final File policiesDir = new File(Utils.getResourcePath(AceAS.class), &quot;policies&quot;);</span>
     private boolean isDhtEnabled;
     private String dhtAddr;
 
@@ -218,47 +220,47 @@ import eu.sifishome.peers.ResourceServer;
     //--- MAIN
     public static void main(String[] args) {
 
-<span class="nc" id="L221">        int exitCode = new CommandLine(new AceAS()).execute(args);</span>
-<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (exitCode != 0) {</span>
-<span class="nc" id="L223">            as.stop();</span>
-<span class="nc" id="L224">            System.exit(exitCode);</span>
+<span class="nc" id="L223">        int exitCode = new CommandLine(new AceAS()).execute(args);</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        if (exitCode != 0) {</span>
+<span class="nc" id="L225">            as.stop();</span>
+<span class="nc" id="L226">            System.exit(exitCode);</span>
         }
-<span class="nc" id="L226">    }</span>
+<span class="nc" id="L228">    }</span>
 
 
     @Override
     public Integer call() throws Exception {
 
-<span class="nc" id="L232">        Utils.createDir(attributesDir);</span>
-<span class="nc" id="L233">        Utils.createDir(policiesDir);</span>
+<span class="fc" id="L234">        Utils.createDir(attributesDir);</span>
+<span class="fc" id="L235">        Utils.createDir(policiesDir);</span>
 
-<span class="nc" id="L235">        parseNumAttributes();</span>
-<span class="nc" id="L236">        parseResources();</span>
+<span class="fc" id="L237">        parseNumAttributes();</span>
+<span class="fc" id="L238">        parseResources();</span>
 
-<span class="nc" id="L238">        DBHelper.setUpDB(dbUri);</span>
-<span class="nc" id="L239">        db = DBHelper.getCoapDBConnector();</span>
+<span class="fc" id="L240">        DBHelper.setUpDB(dbUri);</span>
+<span class="fc" id="L241">        db = DBHelper.getCoapDBConnector();</span>
 
-<span class="nc" id="L241">        setupPDP();</span>
+<span class="fc" id="L243">        setupPDP();</span>
 
-<span class="nc" id="L243">        parseInputs();</span>
+<span class="fc" id="L245">        parseInputs();</span>
 
-<span class="nc" id="L245">        KissTime time = new KissTime();</span>
+<span class="fc" id="L247">        KissTime time = new KissTime();</span>
 
-<span class="nc" id="L247">        TrlConfig trlConfig = new TrlConfig(&quot;trl&quot;, 3, null, true);</span>
+<span class="fc" id="L249">        TrlConfig trlConfig = new TrlConfig(&quot;trl&quot;, 3, null, true);</span>
 
-<span class="nc" id="L249">        as = new OscoreAS(asName, db, pdp, time, myAsymmKey, &quot;token&quot;, &quot;introspect&quot;, trlConfig,</span>
+<span class="fc" id="L251">        as = new OscoreAS(asName, db, pdp, time, myAsymmKey, &quot;token&quot;, &quot;introspect&quot;, trlConfig,</span>
                 CoAP.DEFAULT_COAP_PORT, null, false, (short) 1, true,
                 peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
 
-<span class="nc" id="L253">        as.start();</span>
-<span class="nc" id="L254">        System.out.println(&quot;Server starting&quot;);</span>
+<span class="fc" id="L255">        as.start();</span>
+<span class="fc" id="L256">        System.out.println(&quot;Server starting&quot;);</span>
         //as.stop();
 
-<span class="nc" id="L257">        timer = new Timer();</span>
-<span class="nc" id="L258">        timer.schedule(new AttributeChanger(&quot;thermometer-reachable.txt&quot;, &quot;changedValue&quot;),</span>
+<span class="fc" id="L259">        timer = new Timer();</span>
+<span class="fc" id="L260">        timer.schedule(new AttributeChanger(&quot;thermometer-reachable.txt&quot;, &quot;changedValue&quot;),</span>
                 30000);// + (int) (Math.random() * 30000));
 
-<span class="nc" id="L261">        return 0;</span>
+<span class="fc" id="L263">        return 0;</span>
     }
 
     /**
@@ -267,249 +269,252 @@ import eu.sifishome.peers.ResourceServer;
      * @throws Exception
      */
     public static void stop() throws Exception {
-<span class="nc" id="L270">        as.stop();</span>
-<span class="nc" id="L271">        pdp.close();</span>
-<span class="nc" id="L272">        DBHelper.tearDownDB();</span>
-<span class="nc" id="L273">        System.out.println(&quot;Server stopped&quot;);</span>
-<span class="nc" id="L274">    }</span>
+<span class="fc" id="L272">        as.stop();</span>
+<span class="fc" id="L273">        pdp.close();</span>
+<span class="fc" id="L274">        DBHelper.tearDownDB();</span>
+<span class="fc" id="L275">        System.out.println(&quot;Server stopped&quot;);</span>
+<span class="fc" id="L276">    }</span>
 
 
     private void parseInputs() throws AceException {
 
         List&lt;Args&gt; inputClients;
         try {
-<span class="nc" id="L281">            inputClients = new ArrayList&lt;&gt;(this.args);</span>
-<span class="nc" id="L282">            inputClients.removeIf(c -&gt; c.peer.isResourceServer);</span>
-<span class="nc" id="L283">        } catch (NullPointerException e) {</span>
-<span class="nc" id="L284">            inputClients = new ArrayList&lt;&gt;();</span>
-<span class="nc" id="L285">        }</span>
+<span class="fc" id="L283">            inputClients = new ArrayList&lt;&gt;(this.args);</span>
+<span class="fc" id="L284">            inputClients.removeIf(c -&gt; c.peer.isResourceServer);</span>
+<span class="fc" id="L285">        } catch (NullPointerException e) {</span>
+<span class="fc" id="L286">            inputClients = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L287">        }</span>
 
         List&lt;Args&gt; inputResourceServers;
         try {
-<span class="nc" id="L289">            inputResourceServers = new ArrayList&lt;&gt;(this.args);</span>
-<span class="nc" id="L290">            inputResourceServers.removeIf(r -&gt; r.peer.isClient);</span>
-<span class="nc" id="L291">        } catch (NullPointerException e) {</span>
-<span class="nc" id="L292">            inputResourceServers = new ArrayList&lt;&gt;();</span>
-<span class="nc" id="L293">        }</span>
+<span class="fc" id="L291">            inputResourceServers = new ArrayList&lt;&gt;(this.args);</span>
+<span class="fc" id="L292">            inputResourceServers.removeIf(r -&gt; r.peer.isClient);</span>
+<span class="fc" id="L293">        } catch (NullPointerException e) {</span>
+<span class="fc" id="L294">            inputResourceServers = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L295">        }</span>
 
-<span class="nc" id="L295">        List&lt;Client&gt; clients = new ArrayList&lt;&gt;();</span>
-<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (inputClients.isEmpty()) {</span>
-<span class="nc" id="L297">            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList&lt;String&gt;() {{</span>
-<span class="nc" id="L298">                add(DEFAULT_CLIENT_SCOPE);</span>
-<span class="nc" id="L299">            }},</span>
-<span class="nc" id="L300">                    new ArrayList&lt;String&gt;() {{</span>
-<span class="nc" id="L301">                        add(DEFAULT_CLIENT_AUD);</span>
-<span class="nc" id="L302">                    }}, DEFAULT_CLIENT_SENDER_ID,</span>
+<span class="fc" id="L297">        List&lt;Client&gt; clients = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">        if (inputClients.isEmpty()) {</span>
+<span class="fc" id="L299">            clients.add(new Client(DEFAULT_CLIENT_NAME, new ArrayList&lt;String&gt;() {{</span>
+<span class="fc" id="L300">                add(DEFAULT_CLIENT_SCOPE);</span>
+<span class="fc" id="L301">            }},</span>
+<span class="fc" id="L302">                    new ArrayList&lt;String&gt;() {{</span>
+<span class="fc" id="L303">                        add(DEFAULT_CLIENT_AUD);</span>
+<span class="fc" id="L304">                    }}, DEFAULT_CLIENT_SENDER_ID,</span>
                     DEFAULT_CLIENT_MASTER_SECRET));
         }
-<span class="nc bnc" id="L305" title="All 2 branches missed.">        for (Args c : inputClients) {</span>
-<span class="nc" id="L306">            clients.add(new Client(c.opt.name, c.opt.scope, c.opt.aud,</span>
+<span class="fc bfc" id="L307" title="All 2 branches covered.">        for (Args c : inputClients) {</span>
+<span class="fc" id="L308">            clients.add(new Client(c.opt.name, c.opt.scope, c.opt.aud,</span>
                     c.opt.sId, c.opt.key));
-<span class="nc" id="L308">        }</span>
-<span class="nc bnc" id="L309" title="All 2 branches missed.">        for (Client c : clients) {</span>
-<span class="nc" id="L310">            setupClient(c);</span>
-<span class="nc" id="L311">        }</span>
+<span class="fc" id="L310">        }</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        for (Client c : clients) {</span>
+<span class="fc" id="L312">            setupClient(c);</span>
+<span class="fc" id="L313">        }</span>
 
-<span class="nc" id="L313">        List&lt;ResourceServer&gt; resourceServers = new ArrayList&lt;&gt;();</span>
-<span class="nc bnc" id="L314" title="All 2 branches missed.">        if (inputResourceServers.isEmpty()) {</span>
-<span class="nc" id="L315">            resourceServers.add(new ResourceServer(DEFAULT_RESOURCE_SERVER_NAME,</span>
+<span class="fc" id="L315">        List&lt;ResourceServer&gt; resourceServers = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">        if (inputResourceServers.isEmpty()) {</span>
+<span class="fc" id="L317">            resourceServers.add(new ResourceServer(DEFAULT_RESOURCE_SERVER_NAME,</span>
                     DEFAULT_RESOURCE_SERVER_SCOPE, DEFAULT_RESOURCE_SERVER_AUD,
                     DEFAULT_RESOURCE_SERVER_SENDER_ID, DEFAULT_RESOURCE_SERVER_MASTER_SECRET,
                     DEFAULT_RESOURCE_SERVER_TOKEN_PSK));
         }
-<span class="nc bnc" id="L320" title="All 2 branches missed.">        for (Args r : inputResourceServers) {</span>
+<span class="fc bfc" id="L322" title="All 2 branches covered.">        for (Args r : inputResourceServers) {</span>
 
             // check that all the options have been specified
 
             // if the resource server name is specified within the audience, remove it
             // (The AS automatically adds an audience with the resource server name for the resource server)
-<span class="nc bnc" id="L326" title="All 2 branches missed.">            if (r.opt.aud.get(0).contains(r.opt.name)) {</span>
-<span class="nc" id="L327">                r.opt.aud.set(0, r.opt.aud.get(0).replaceAll(r.opt.name, &quot;&quot;));</span>
-<span class="nc" id="L328">                r.opt.aud.set(0, r.opt.aud.get(0).trim().replaceAll(&quot; +&quot;, &quot; &quot;));</span>
+<span class="pc bpc" id="L328" title="1 of 2 branches missed.">            if (r.opt.aud.get(0).contains(r.opt.name)) {</span>
+<span class="fc" id="L329">                r.opt.aud.set(0, r.opt.aud.get(0).replaceAll(r.opt.name, &quot;&quot;));</span>
+<span class="fc" id="L330">                r.opt.aud.set(0, r.opt.aud.get(0).trim().replaceAll(&quot; +&quot;, &quot; &quot;));</span>
             }
-<span class="nc" id="L330">            resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope.get(0), r.opt.aud.get(0),</span>
+<span class="fc" id="L332">            resourceServers.add(new ResourceServer(r.opt.name, r.opt.scope.get(0), r.opt.aud.get(0),</span>
                     r.opt.sId, r.opt.key, r.opt.tokenKey));
-<span class="nc" id="L332">        }</span>
-<span class="nc bnc" id="L333" title="All 2 branches missed.">        for (ResourceServer r : resourceServers) {</span>
-<span class="nc" id="L334">            setupResourceServer(r);</span>
-<span class="nc" id="L335">        }</span>
+<span class="fc" id="L334">        }</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">        for (ResourceServer r : resourceServers) {</span>
+<span class="fc" id="L336">            setupResourceServer(r);</span>
+<span class="fc" id="L337">        }</span>
 
         // parse DHT arguments
         try {
-<span class="nc" id="L339">            isDhtEnabled = this.dhtArg.isDhtEnabled;</span>
-<span class="nc bnc" id="L340" title="All 2 branches missed.">            if (isDhtEnabled) {</span>
+<span class="nc" id="L341">            isDhtEnabled = this.dhtArg.isDhtEnabled;</span>
+<span class="nc bnc" id="L342" title="All 2 branches missed.">            if (isDhtEnabled) {</span>
                 try {
-<span class="nc" id="L342">                    dhtAddr = this.dhtArg.dhtUri;</span>
-<span class="nc" id="L343">                } catch (NullPointerException e) {</span>
-<span class="nc" id="L344">                    dhtAddr = DEFAULT_DHT_ADDRESS;</span>
-<span class="nc" id="L345">                }</span>
+<span class="nc" id="L344">                    dhtAddr = this.dhtArg.dhtUri;</span>
+<span class="nc" id="L345">                } catch (NullPointerException e) {</span>
+<span class="nc" id="L346">                    dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L347">                }</span>
             }
-<span class="nc" id="L347">        } catch (NullPointerException e) {</span>
-<span class="nc" id="L348">            isDhtEnabled = false;</span>
-<span class="nc" id="L349">            dhtAddr = DEFAULT_DHT_ADDRESS;</span>
-<span class="nc" id="L350">        }</span>
-<span class="nc bnc" id="L351" title="All 2 branches missed.">        if (isDhtEnabled) {</span>
+<span class="fc" id="L349">        } catch (NullPointerException e) {</span>
+<span class="fc" id="L350">            isDhtEnabled = false;</span>
+<span class="fc" id="L351">            dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L352">        }</span>
+<span class="pc bpc" id="L353" title="1 of 2 branches missed.">        if (isDhtEnabled) {</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            if (!Utils.isDhtReachable(dhtAddr, 2000, Integer.MAX_VALUE)) {</span>
+<span class="nc" id="L355">                throw new AceException(&quot;Unable to connect to the DHT&quot;);</span>
+            }
             // Possibly set up connection to the DHT for sending logging statements
-<span class="nc" id="L353">            System.out.println(&quot;Connecting to the DHT for logging.&quot;);</span>
-<span class="nc" id="L354">            DhtLogger.setLogging(true);</span>
-<span class="nc" id="L355">            DhtLogger.establishConnection(dhtAddr);</span>
+<span class="nc" id="L358">            System.out.println(&quot;Connecting to the DHT for logging.&quot;);</span>
+<span class="nc" id="L359">            DhtLogger.setLogging(true);</span>
+<span class="nc" id="L360">            DhtLogger.establishConnection(dhtAddr);</span>
         }
 
-<span class="nc" id="L358">    }</span>
+<span class="fc" id="L363">    }</span>
 
     private void parseNumAttributes() {
-<span class="nc bnc" id="L361" title="All 2 branches missed.">        if (numAttributes &lt; 1) {</span>
-<span class="nc" id="L362">            System.out.println(&quot;Number of attributes &quot; + numAttributes + &quot; not supported.\n&quot; +</span>
-                    &quot;Setting it to the minimum allowed, i.e., 1&quot;);
-<span class="nc" id="L364">            numAttributes = 1;</span>
-        }
-<span class="nc bnc" id="L366" title="All 2 branches missed.">        if (numAttributes &gt; 50) {</span>
+<span class="pc bpc" id="L366" title="1 of 2 branches missed.">        if (numAttributes &lt; 1) {</span>
 <span class="nc" id="L367">            System.out.println(&quot;Number of attributes &quot; + numAttributes + &quot; not supported.\n&quot; +</span>
-                    &quot;Setting it to the maximum allowed, i.e., 50&quot;);
-<span class="nc" id="L369">            numAttributes = 50;</span>
+                    &quot;Setting it to the minimum allowed, i.e., 1&quot;);
+<span class="nc" id="L369">            numAttributes = 1;</span>
         }
-<span class="nc" id="L371">    }</span>
+<span class="pc bpc" id="L371" title="1 of 2 branches missed.">        if (numAttributes &gt; 50) {</span>
+<span class="nc" id="L372">            System.out.println(&quot;Number of attributes &quot; + numAttributes + &quot; not supported.\n&quot; +</span>
+                    &quot;Setting it to the maximum allowed, i.e., 50&quot;);
+<span class="nc" id="L374">            numAttributes = 50;</span>
+        }
+<span class="fc" id="L376">    }</span>
 
     private void parseResources() {
-<span class="nc bnc" id="L374" title="All 4 branches missed.">        if (resources == null || resources.isEmpty()) {</span>
-<span class="nc" id="L375">            resources = DEFAULT_RESOURCES;</span>
+<span class="pc bpc" id="L379" title="1 of 4 branches missed.">        if (resources == null || resources.isEmpty()) {</span>
+<span class="fc" id="L380">            resources = DEFAULT_RESOURCES;</span>
         } else {
             // validate input
         }
-<span class="nc" id="L379">    }</span>
+<span class="fc" id="L384">    }</span>
 
     private void setupResourceServer(ResourceServer r) throws AceException {
 
-<span class="nc" id="L383">        db.addRS(r.getName(), r.getProfiles(), r.getScopeSet(), r.getAudSet(),</span>
-<span class="nc" id="L384">                r.getKeyTypes(), r.getTokenTypes(), r.getCose(), r.getExpiration(),</span>
-<span class="nc" id="L385">                r.getSharedPsk(), r.getTokenPsk(), null);</span>
-<span class="nc" id="L386">        addIdentity(r.getName(), r.getsId());</span>
-<span class="nc" id="L387">        pdp.addIntrospectAccess(r.getName());</span>
-<span class="nc" id="L388">    }</span>
+<span class="fc" id="L388">        db.addRS(r.getName(), r.getProfiles(), r.getScopeSet(), r.getAudSet(),</span>
+<span class="fc" id="L389">                r.getKeyTypes(), r.getTokenTypes(), r.getCose(), r.getExpiration(),</span>
+<span class="fc" id="L390">                r.getSharedPsk(), r.getTokenPsk(), null);</span>
+<span class="fc" id="L391">        addIdentity(r.getName(), r.getsId());</span>
+<span class="fc" id="L392">        pdp.addIntrospectAccess(r.getName());</span>
+<span class="fc" id="L393">    }</span>
 
     private void setupClient(Client c) throws AceException {
 
-<span class="nc" id="L392">        db.addClient(c.getName(), c.getProfiles(), null, null,</span>
-<span class="nc" id="L393">                c.getKeyTypes(), c.getSharedPsk(), null);</span>
-<span class="nc" id="L394">        addIdentity(c.getName(), c.getsId());</span>
-<span class="nc" id="L395">        pdp.addTokenAccess(c.getName());</span>
+<span class="fc" id="L397">        db.addClient(c.getName(), c.getProfiles(), null, null,</span>
+<span class="fc" id="L398">                c.getKeyTypes(), c.getSharedPsk(), null);</span>
+<span class="fc" id="L399">        addIdentity(c.getName(), c.getsId());</span>
+<span class="fc" id="L400">        pdp.addTokenAccess(c.getName());</span>
 
-<span class="nc bnc" id="L397" title="All 2 branches missed.">        for (int i = 0; i &lt; c.getScope().size(); i++) {</span>
-<span class="nc" id="L398">            String scope = c.getScope().get(i);</span>
-<span class="nc" id="L399">            List&lt;String&gt; scopes = new ArrayList&lt;&gt;(Arrays.asList(scope.split(&quot; &quot;)));</span>
-<span class="nc bnc" id="L400" title="All 2 branches missed.">            for (String subScope : scopes) {</span>
-<span class="nc bnc" id="L401" title="All 2 branches missed.">                if (pdp instanceof UcsHelper) {</span>
-<span class="nc" id="L402">                    String res = subScope.substring(subScope.indexOf(&quot;_&quot;) + 1);</span>
-<span class="nc" id="L403">                    String policySuffix = &quot;&quot;;</span>
-<span class="nc bnc" id="L404" title="All 4 branches missed.">                    if (res.equals(&quot;temp&quot;) &amp;&amp; numAttributes &gt; 1) {</span>
-<span class="nc" id="L405">                        policySuffix = &quot;_&quot; + numAttributes + &quot;_attributes&quot;;</span>
+<span class="fc bfc" id="L402" title="All 2 branches covered.">        for (int i = 0; i &lt; c.getScope().size(); i++) {</span>
+<span class="fc" id="L403">            String scope = c.getScope().get(i);</span>
+<span class="fc" id="L404">            List&lt;String&gt; scopes = new ArrayList&lt;&gt;(Arrays.asList(scope.split(&quot; &quot;)));</span>
+<span class="fc bfc" id="L405" title="All 2 branches covered.">            for (String subScope : scopes) {</span>
+<span class="fc bfc" id="L406" title="All 2 branches covered.">                if (pdp instanceof UcsHelper) {</span>
+<span class="fc" id="L407">                    String res = subScope.substring(subScope.indexOf(&quot;_&quot;) + 1);</span>
+<span class="fc" id="L408">                    String policySuffix = &quot;&quot;;</span>
+<span class="fc bfc" id="L409" title="All 4 branches covered.">                    if (res.equals(&quot;temp&quot;) &amp;&amp; numAttributes &gt; 1) {</span>
+<span class="fc" id="L410">                        policySuffix = &quot;_&quot; + numAttributes + &quot;_attributes&quot;;</span>
                     }
 //                    if (res.equals(&quot;helloWorld&quot;) &amp;&amp; numAttributes &gt; 1) {
 //                        policySuffix = &quot;_&quot; + numAttributes + &quot;_attributes&quot;;
 //                    }
-<span class="nc" id="L410">                    String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
+<span class="fc" id="L415">                    String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
                             &quot;policy-templates&quot; + File.separator + &quot;policy_template_&quot; + res + policySuffix));
-<span class="nc" id="L412">                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);</span>
-<span class="nc" id="L413">                } else {</span>
-<span class="nc" id="L414">                    pdp.addAccess(c.getName(), c.getAud().get(i), subScope);</span>
+<span class="fc" id="L417">                    ((UcsHelper) pdp).addAccess(c.getName(), c.getAud().get(i), subScope, policyTemplate);</span>
+<span class="fc" id="L418">                } else {</span>
+<span class="fc" id="L419">                    pdp.addAccess(c.getName(), c.getAud().get(i), subScope);</span>
                 }
-<span class="nc" id="L416">            }</span>
+<span class="fc" id="L421">            }</span>
         }
-<span class="nc" id="L418">    }</span>
+<span class="fc" id="L423">    }</span>
 
 
     private void addIdentity(String peerName, byte[] peerIdentity) {
 
-<span class="nc" id="L423">        String peerIdentityStr = buildOscoreIdentity(peerIdentity, idContext);</span>
-<span class="nc" id="L424">        peerNamesToIdentities.put(peerName, peerIdentityStr);</span>
-<span class="nc" id="L425">        peerIdentitiesToNames.put(peerIdentityStr, peerName);</span>
-<span class="nc" id="L426">        myIdentities.put(peerName, asIdentity);</span>
-<span class="nc" id="L427">    }</span>
+<span class="fc" id="L428">        String peerIdentityStr = buildOscoreIdentity(peerIdentity, idContext);</span>
+<span class="fc" id="L429">        peerNamesToIdentities.put(peerName, peerIdentityStr);</span>
+<span class="fc" id="L430">        peerIdentitiesToNames.put(peerIdentityStr, peerName);</span>
+<span class="fc" id="L431">        myIdentities.put(peerName, asIdentity);</span>
+<span class="fc" id="L432">    }</span>
 
     private String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
 
-<span class="nc bnc" id="L431" title="All 2 branches missed.">        if (senderId == null)</span>
-<span class="nc" id="L432">            return null;</span>
-<span class="nc" id="L433">        String identity = &quot;&quot;;</span>
+<span class="pc bpc" id="L436" title="1 of 2 branches missed.">        if (senderId == null)</span>
+<span class="nc" id="L437">            return null;</span>
+<span class="fc" id="L438">        String identity = &quot;&quot;;</span>
 
-<span class="nc bnc" id="L435" title="All 2 branches missed.">        if (contextId != null) {</span>
-<span class="nc" id="L436">            identity += Base64.getEncoder().encodeToString(contextId);</span>
-<span class="nc" id="L437">            identity += &quot;:&quot;;</span>
+<span class="pc bpc" id="L440" title="1 of 2 branches missed.">        if (contextId != null) {</span>
+<span class="fc" id="L441">            identity += Base64.getEncoder().encodeToString(contextId);</span>
+<span class="fc" id="L442">            identity += &quot;:&quot;;</span>
         }
-<span class="nc" id="L439">        identity += Base64.getEncoder().encodeToString(senderId);</span>
+<span class="fc" id="L444">        identity += Base64.getEncoder().encodeToString(senderId);</span>
 
-<span class="nc" id="L441">        return identity;</span>
+<span class="fc" id="L446">        return identity;</span>
 
     }
 
 
     private void setupPDP() throws AceException {
 
-<span class="nc bnc" id="L448" title="All 2 branches missed.">        if (isKissPDP) {</span>
-<span class="nc" id="L449">            pdp = new KissPDP(db);</span>
+<span class="fc bfc" id="L453" title="All 2 branches covered.">        if (isKissPDP) {</span>
+<span class="fc" id="L454">            pdp = new KissPDP(db);</span>
         } else {
 
-<span class="nc" id="L452">            restoreAttributesValue();</span>
+<span class="fc" id="L457">            restoreAttributesValue();</span>
 
-<span class="nc" id="L454">            List&lt;String&gt; allowedResources = new ArrayList&lt;&gt;(Arrays.asList(resources.split(&quot; &quot;)));</span>
+<span class="fc" id="L459">            List&lt;String&gt; allowedResources = new ArrayList&lt;&gt;(Arrays.asList(resources.split(&quot; &quot;)));</span>
 
-<span class="nc" id="L456">            UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L457">            List&lt;PipProperties&gt; pipPropertiesList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L461">            UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L462">            List&lt;PipProperties&gt; pipPropertiesList = new ArrayList&lt;&gt;();</span>
 
-<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Temp&quot;)) {</span>
-<span class="nc" id="L460">                pipReader.addAttribute(</span>
+<span class="pc bpc" id="L464" title="1 of 2 branches missed.">            if (allowedResources.contains(&quot;Temp&quot;)) {</span>
+<span class="fc" id="L465">                pipReader.addAttribute(</span>
                         &quot;urn:oasis:names:tc:xacml:3.0:environment:thermometer-reachable&quot;,
-<span class="nc" id="L462">                        Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L463">                        DataType.STRING.toString(),</span>
-<span class="nc" id="L464">                        attributesDir.getAbsolutePath() + File.separator +  &quot;thermometer-reachable.txt&quot;);</span>
-<span class="nc" id="L465">                pipReader.setRefreshRate(10L);</span>
-<span class="nc" id="L466">                pipPropertiesList.add(pipReader);</span>
+<span class="fc" id="L467">                        Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L468">                        DataType.STRING.toString(),</span>
+<span class="fc" id="L469">                        attributesDir.getAbsolutePath() + File.separator +  &quot;thermometer-reachable.txt&quot;);</span>
+<span class="fc" id="L470">                pipReader.setRefreshRate(10L);</span>
+<span class="fc" id="L471">                pipPropertiesList.add(pipReader);</span>
 
                 //add additional PIPs as specified by the -N option
-<span class="nc bnc" id="L469" title="All 2 branches missed.">                for (int i = 2; i &lt;= numAttributes; i++) {</span>
-<span class="nc" id="L470">                    pipPropertiesList.add(preparePIPReader(&quot;attribute-temp&quot; + i));</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">                for (int i = 2; i &lt;= numAttributes; i++) {</span>
+<span class="fc" id="L475">                    pipPropertiesList.add(preparePIPReader(&quot;attribute-temp&quot; + i));</span>
                 }
             }
 
-<span class="nc bnc" id="L474" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Humidity&quot;)) {</span>
+<span class="fc bfc" id="L479" title="All 2 branches covered.">            if (allowedResources.contains(&quot;Humidity&quot;)) {</span>
                 // used only for warm up, if the Client uses the -W option
-<span class="nc" id="L476">                pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L477">                pipReader.addAttribute(</span>
+<span class="fc" id="L481">                pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L482">                pipReader.addAttribute(</span>
                         &quot;urn:oasis:names:tc:xacml:3.0:environment:hygrometer-reachable&quot;,
-<span class="nc" id="L479">                        Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L480">                        DataType.STRING.toString(),</span>
-<span class="nc" id="L481">                        attributesDir.getAbsolutePath() + File.separator +  &quot;hygrometer-reachable.txt&quot;);</span>
-<span class="nc" id="L482">                pipPropertiesList.add(pipReader);</span>
+<span class="fc" id="L484">                        Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L485">                        DataType.STRING.toString(),</span>
+<span class="fc" id="L486">                        attributesDir.getAbsolutePath() + File.separator +  &quot;hygrometer-reachable.txt&quot;);</span>
+<span class="fc" id="L487">                pipPropertiesList.add(pipReader);</span>
             }
 
-<span class="nc bnc" id="L485" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Brightness&quot;)) {</span>
-<span class="nc" id="L486">                pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L487">                pipReader.addAttribute(</span>
+<span class="fc bfc" id="L490" title="All 2 branches covered.">            if (allowedResources.contains(&quot;Brightness&quot;)) {</span>
+<span class="fc" id="L491">                pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L492">                pipReader.addAttribute(</span>
                         &quot;urn:oasis:names:tc:xacml:3.0:environment:screen-reachable&quot;,
-<span class="nc" id="L489">                        Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L490">                        DataType.STRING.toString(),</span>
-<span class="nc" id="L491">                        attributesDir.getAbsolutePath() + File.separator + &quot;screen-reachable.txt&quot;);</span>
-<span class="nc" id="L492">                pipPropertiesList.add(pipReader);</span>
+<span class="fc" id="L494">                        Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L495">                        DataType.STRING.toString(),</span>
+<span class="fc" id="L496">                        attributesDir.getAbsolutePath() + File.separator + &quot;screen-reachable.txt&quot;);</span>
+<span class="fc" id="L497">                pipPropertiesList.add(pipReader);</span>
             }
 
-<span class="nc bnc" id="L495" title="All 2 branches missed.">            if (allowedResources.contains(&quot;Volume&quot;)) {</span>
-<span class="nc" id="L496">                pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L497">                pipReader.addAttribute(</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">            if (allowedResources.contains(&quot;Volume&quot;)) {</span>
+<span class="fc" id="L501">                pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L502">                pipReader.addAttribute(</span>
                         &quot;urn:oasis:names:tc:xacml:3.0:environment:speaker-reachable&quot;,
-<span class="nc" id="L499">                        Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L500">                        DataType.STRING.toString(),</span>
-<span class="nc" id="L501">                        attributesDir.getAbsolutePath() + File.separator +  &quot;speaker-reachable.txt&quot;);</span>
-<span class="nc" id="L502">                pipPropertiesList.add(pipReader);</span>
+<span class="fc" id="L504">                        Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L505">                        DataType.STRING.toString(),</span>
+<span class="fc" id="L506">                        attributesDir.getAbsolutePath() + File.separator +  &quot;speaker-reachable.txt&quot;);</span>
+<span class="fc" id="L507">                pipPropertiesList.add(pipReader);</span>
             }
 
-<span class="nc bnc" id="L505" title="All 2 branches missed.">            if (allowedResources.contains(&quot;HelloWorld&quot;)) {</span>
-<span class="nc" id="L506">                pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L507">                pipReader.addAttribute(</span>
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">            if (allowedResources.contains(&quot;HelloWorld&quot;)) {</span>
+<span class="fc" id="L511">                pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L512">                pipReader.addAttribute(</span>
                         &quot;urn:oasis:names:tc:xacml:3.0:environment:welcome-led-panel&quot;,
-<span class="nc" id="L509">                        Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L510">                        DataType.STRING.toString(),</span>
-<span class="nc" id="L511">                        attributesDir.getAbsolutePath() + File.separator + &quot;welcome-led-panel.txt&quot;);</span>
-<span class="nc" id="L512">                pipPropertiesList.add(pipReader);</span>
+<span class="fc" id="L514">                        Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L515">                        DataType.STRING.toString(),</span>
+<span class="fc" id="L516">                        attributesDir.getAbsolutePath() + File.separator + &quot;welcome-led-panel.txt&quot;);</span>
+<span class="fc" id="L517">                pipPropertiesList.add(pipReader);</span>
             }
 
             // code to add a PIPReader monitoring the role of the subject
@@ -525,31 +530,31 @@ import eu.sifishome.peers.ResourceServer;
 //                pipPropertiesList.add(preparePIPReader(&quot;attribute-helloWorld&quot; + i));
 //            }
 
-<span class="nc" id="L528">            UcsPapProperties papProperties = new UcsPapProperties(policiesDir.getAbsolutePath());</span>
+<span class="fc" id="L533">            UcsPapProperties papProperties = new UcsPapProperties(policiesDir.getAbsolutePath());</span>
 
-<span class="nc" id="L530">            String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
+<span class="fc" id="L535">            String policyTemplate = Utils.readContent(Utils.accessFile(AceAS.class,</span>
                     &quot;policy-templates&quot; + File.separator + &quot;policy_template&quot;));
 
-<span class="nc" id="L533">            pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);</span>
+<span class="fc" id="L538">            pdp = new UcsHelper(db, pipPropertiesList, papProperties, policyTemplate);</span>
         }
-<span class="nc" id="L535">    }</span>
+<span class="fc" id="L540">    }</span>
 
     private void restoreAttributesValue() {
 
         // restore the value of the attributes
-<span class="nc" id="L540">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc" id="L545">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                 + &quot;hygrometer-reachable.txt&quot;, &quot;y&quot;);
 
-<span class="nc" id="L543">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc" id="L548">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                 + &quot;screen-reachable.txt&quot;, &quot;y&quot;);
 
-<span class="nc" id="L546">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc" id="L551">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                 + &quot;speaker-reachable.txt&quot;, &quot;y&quot;);
 
-<span class="nc" id="L549">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc" id="L554">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                 + &quot;thermometer-reachable.txt&quot;, &quot;y&quot;);
 
-<span class="nc" id="L552">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc" id="L557">        setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                 + &quot;welcome-led-panel.txt&quot;, &quot;Hi!&quot;);
 
 //        setAttributeValue(attributesDir.getAbsolutePath() + File.separator
@@ -559,8 +564,8 @@ import eu.sifishome.peers.ResourceServer;
 //                        + &quot;ClientA maintainer\n&quot;
 //                        + &quot;ClientD admin&quot;);
 
-<span class="nc bnc" id="L562" title="All 2 branches missed.">        for (int i = 2; i &lt;= numAttributes; i++) {</span>
-<span class="nc" id="L563">            setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="fc bfc" id="L567" title="All 2 branches covered.">        for (int i = 2; i &lt;= numAttributes; i++) {</span>
+<span class="fc" id="L568">            setAttributeValue(attributesDir.getAbsolutePath() + File.separator</span>
                     + &quot;attribute-temp&quot; + i + &quot;.txt&quot;, &quot;y&quot;);
         }
 
@@ -568,30 +573,30 @@ import eu.sifishome.peers.ResourceServer;
 //            setAttributeValue(attributesDir.getAbsolutePath() + File.separator
 //                    + &quot;attribute-helloWorld&quot; + i + &quot;.txt&quot;, &quot;y&quot;);
 //        }
-<span class="nc" id="L571">    }</span>
+<span class="fc" id="L576">    }</span>
 
     public static UcsPipReaderProperties preparePIPReader(String attribute) {
-<span class="nc" id="L574">        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
-<span class="nc" id="L575">        pipReader.addAttribute(</span>
+<span class="fc" id="L579">        UcsPipReaderProperties pipReader = new UcsPipReaderProperties();</span>
+<span class="fc" id="L580">        pipReader.addAttribute(</span>
                 &quot;urn:oasis:names:tc:xacml:3.0:environment:&quot; + attribute,
-<span class="nc" id="L577">                Category.ENVIRONMENT.toString(),</span>
-<span class="nc" id="L578">                DataType.STRING.toString(),</span>
-<span class="nc" id="L579">                attributesDir.getAbsolutePath() + File.separator + attribute + &quot;.txt&quot;);</span>
-<span class="nc" id="L580">        return pipReader;</span>
+<span class="fc" id="L582">                Category.ENVIRONMENT.toString(),</span>
+<span class="fc" id="L583">                DataType.STRING.toString(),</span>
+<span class="fc" id="L584">                attributesDir.getAbsolutePath() + File.separator + attribute + &quot;.txt&quot;);</span>
+<span class="fc" id="L585">        return pipReader;</span>
     }
 
     public static void setAttributeValue(String fileName, String value) {
 
-<span class="nc" id="L585">        File file = new File(fileName);</span>
-<span class="nc" id="L586">        FileWriter fw = null;</span>
+<span class="fc" id="L590">        File file = new File(fileName);</span>
+<span class="fc" id="L591">        FileWriter fw = null;</span>
         try {
-<span class="nc" id="L588">            fw = new FileWriter(file);</span>
-<span class="nc" id="L589">            fw.write(value);</span>
-<span class="nc" id="L590">            fw.close();</span>
-<span class="nc" id="L591">        } catch (IOException e) {</span>
-<span class="nc" id="L592">            e.printStackTrace();</span>
-<span class="nc" id="L593">        }</span>
-<span class="nc" id="L594">    }</span>
+<span class="fc" id="L593">            fw = new FileWriter(file);</span>
+<span class="fc" id="L594">            fw.write(value);</span>
+<span class="fc" id="L595">            fw.close();</span>
+<span class="nc" id="L596">        } catch (IOException e) {</span>
+<span class="nc" id="L597">            e.printStackTrace();</span>
+<span class="fc" id="L598">        }</span>
+<span class="fc" id="L599">    }</span>
 
     /**
      * Change the attribute value within the file identified by fileName.
@@ -603,23 +608,23 @@ import eu.sifishome.peers.ResourceServer;
         private final String fileName;
         private final String value;
 
-<span class="nc" id="L606">        public AttributeChanger(String fileName, String value) {</span>
-<span class="nc" id="L607">            this.fileName = fileName;</span>
-<span class="nc" id="L608">            this.value = value;</span>
-<span class="nc" id="L609">        }</span>
+<span class="fc" id="L611">        public AttributeChanger(String fileName, String value) {</span>
+<span class="fc" id="L612">            this.fileName = fileName;</span>
+<span class="fc" id="L613">            this.value = value;</span>
+<span class="fc" id="L614">        }</span>
 
         public void run() {
-<span class="nc" id="L612">            File file = new File(attributesDir.getAbsolutePath() + File.separator</span>
+<span class="nc" id="L617">            File file = new File(attributesDir.getAbsolutePath() + File.separator</span>
                     + this.fileName);
-<span class="nc" id="L614">            FileWriter fw = null;</span>
+<span class="nc" id="L619">            FileWriter fw = null;</span>
             try {
-<span class="nc" id="L616">                fw = new FileWriter(file);</span>
-<span class="nc" id="L617">                fw.write(this.value);</span>
-<span class="nc" id="L618">                fw.close();</span>
-<span class="nc" id="L619">            } catch (IOException e) {</span>
-<span class="nc" id="L620">                e.printStackTrace();</span>
-<span class="nc" id="L621">            }</span>
-<span class="nc" id="L622">        }</span>
+<span class="nc" id="L621">                fw = new FileWriter(file);</span>
+<span class="nc" id="L622">                fw.write(this.value);</span>
+<span class="nc" id="L623">                fw.close();</span>
+<span class="nc" id="L624">            } catch (IOException e) {</span>
+<span class="nc" id="L625">                e.printStackTrace();</span>
+<span class="nc" id="L626">            }</span>
+<span class="nc" id="L627">        }</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

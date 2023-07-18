@@ -17,42 +17,42 @@ public class ResourceServer {
     private final byte[] sId;
     private final byte[] masterSecret;
     private final byte[] tokenKey;
-<span class="nc" id="L20">    private Set&lt;String&gt; keyTypes = new HashSet&lt;String&gt;(){{add(&quot;PSK&quot;);}};</span>
-<span class="nc" id="L21">    private Set&lt;String&gt; profiles = new HashSet&lt;String&gt;(){{add(&quot;coap_oscore&quot;);}};</span>
-<span class="nc" id="L22">    private Set&lt;Short&gt; tokenTypes = new HashSet&lt;Short&gt;(){{add(AccessTokenFactory.CWT_TYPE);}};</span>
-<span class="nc" id="L23">    private Set&lt;COSEparams&gt; cose =</span>
-<span class="nc" id="L24">            new HashSet&lt;COSEparams&gt;(){{add(new COSEparams(MessageTag.Encrypt0,</span>
-<span class="nc" id="L25">                    AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct));}};</span>
-<span class="nc" id="L26">    private long expiration = 40000L; // 86400000L;</span>
+<span class="fc" id="L20">    private Set&lt;String&gt; keyTypes = new HashSet&lt;String&gt;(){{add(&quot;PSK&quot;);}};</span>
+<span class="fc" id="L21">    private Set&lt;String&gt; profiles = new HashSet&lt;String&gt;(){{add(&quot;coap_oscore&quot;);}};</span>
+<span class="fc" id="L22">    private Set&lt;Short&gt; tokenTypes = new HashSet&lt;Short&gt;(){{add(AccessTokenFactory.CWT_TYPE);}};</span>
+<span class="fc" id="L23">    private Set&lt;COSEparams&gt; cose =</span>
+<span class="fc" id="L24">            new HashSet&lt;COSEparams&gt;(){{add(new COSEparams(MessageTag.Encrypt0,</span>
+<span class="fc" id="L25">                    AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct));}};</span>
+<span class="fc" id="L26">    private long expiration = 40000L; // 86400000L;</span>
 
     private final OneKey sharedPsk;
     private final OneKey tokenPsk;
-<span class="nc" id="L30">    private final OneKey publicKey = null;</span>
+<span class="fc" id="L30">    private final OneKey publicKey = null;</span>
 
 
     public ResourceServer (String name, String scope,
                    String aud, String sId, String masterSecret, String tokenKey)
-<span class="nc" id="L35">            throws AceException {</span>
-<span class="nc bnc" id="L36" title="All 10 branches missed.">        if (name == null || scope == null || aud == null || sId == null || masterSecret == null) {</span>
+<span class="fc" id="L35">            throws AceException {</span>
+<span class="pc bpc" id="L36" title="5 of 10 branches missed.">        if (name == null || scope == null || aud == null || sId == null || masterSecret == null) {</span>
 <span class="nc" id="L37">            throw new AceException(&quot;Peer requires non-null parameters&quot;);</span>
         }
-<span class="nc" id="L39">        this.name = name;</span>
-<span class="nc" id="L40">        this.scope = scope;</span>
-<span class="nc" id="L41">        this.aud = aud;</span>
-<span class="nc" id="L42">        this.sId = hexStringToByteArray(sId);</span>
+<span class="fc" id="L39">        this.name = name;</span>
+<span class="fc" id="L40">        this.scope = scope;</span>
+<span class="fc" id="L41">        this.aud = aud;</span>
+<span class="fc" id="L42">        this.sId = hexStringToByteArray(sId);</span>
 
-<span class="nc" id="L44">        this.masterSecret = masterSecret.getBytes(Constants.charset);</span>
-<span class="nc" id="L45">        this.tokenKey = tokenKey.getBytes(Constants.charset);</span>
+<span class="fc" id="L44">        this.masterSecret = masterSecret.getBytes(Constants.charset);</span>
+<span class="fc" id="L45">        this.tokenKey = tokenKey.getBytes(Constants.charset);</span>
         try {
-<span class="nc" id="L47">            this.sharedPsk = generateKey(this.masterSecret);</span>
-<span class="nc" id="L48">            this.tokenPsk = generateKey(this.tokenKey);</span>
+<span class="fc" id="L47">            this.sharedPsk = generateKey(this.masterSecret);</span>
+<span class="fc" id="L48">            this.tokenPsk = generateKey(this.tokenKey);</span>
 <span class="nc" id="L49">        } catch (CoseException e) {</span>
 <span class="nc" id="L50">            throw new RuntimeException(e);</span>
-<span class="nc" id="L51">        }</span>
-<span class="nc" id="L52">    }</span>
+<span class="fc" id="L51">        }</span>
+<span class="fc" id="L52">    }</span>
 
     public String getName() {
-<span class="nc" id="L55">        return name;</span>
+<span class="fc" id="L55">        return name;</span>
     }
 
     public String getScope() {
@@ -60,11 +60,11 @@ public class ResourceServer {
     }
 
     public Set&lt;String&gt; getScopeSet() {
-<span class="nc" id="L63">        return new HashSet&lt;&gt;(Arrays.asList(this.scope.split(&quot; &quot;)));</span>
+<span class="fc" id="L63">        return new HashSet&lt;&gt;(Arrays.asList(this.scope.split(&quot; &quot;)));</span>
     }
 
     public Set&lt;String&gt; getAudSet() {
-<span class="nc" id="L67">        return new HashSet&lt;&gt;(Arrays.asList(this.aud.split(&quot; &quot;)));</span>
+<span class="fc" id="L67">        return new HashSet&lt;&gt;(Arrays.asList(this.aud.split(&quot; &quot;)));</span>
     }
 
     public String getAud() {
@@ -72,7 +72,7 @@ public class ResourceServer {
     }
 
     public byte[] getsId() {
-<span class="nc" id="L75">        return sId;</span>
+<span class="fc" id="L75">        return sId;</span>
     }
 
     public byte[] getMasterSecret() {
@@ -80,7 +80,7 @@ public class ResourceServer {
     }
 
     public OneKey getSharedPsk() {
-<span class="nc" id="L83">        return sharedPsk;</span>
+<span class="fc" id="L83">        return sharedPsk;</span>
     }
 
     public byte[] getTokenKey() {
@@ -88,7 +88,7 @@ public class ResourceServer {
     }
 
     public OneKey getTokenPsk() {
-<span class="nc" id="L91">        return tokenPsk;</span>
+<span class="fc" id="L91">        return tokenPsk;</span>
     }
 
     public OneKey getPublicKey() {
@@ -96,7 +96,7 @@ public class ResourceServer {
     }
 
     public Set&lt;String&gt; getKeyTypes() {
-<span class="nc" id="L99">        return keyTypes;</span>
+<span class="fc" id="L99">        return keyTypes;</span>
     }
 
     public void setKeyTypes(Set&lt;String&gt; keyTypes) {
@@ -104,7 +104,7 @@ public class ResourceServer {
 <span class="nc" id="L104">    }</span>
 
     public Set&lt;String&gt; getProfiles() {
-<span class="nc" id="L107">        return profiles;</span>
+<span class="fc" id="L107">        return profiles;</span>
     }
 
     public void setProfiles(Set&lt;String&gt; profiles) {
@@ -112,7 +112,7 @@ public class ResourceServer {
 <span class="nc" id="L112">    }</span>
 
     public Set&lt;Short&gt; getTokenTypes() {
-<span class="nc" id="L115">        return tokenTypes;</span>
+<span class="fc" id="L115">        return tokenTypes;</span>
     }
 
     public void setTokenTypes(Set&lt;Short&gt; tokenTypes) {
@@ -120,7 +120,7 @@ public class ResourceServer {
 <span class="nc" id="L120">    }</span>
 
     public Set&lt;COSEparams&gt; getCose() {
-<span class="nc" id="L123">        return cose;</span>
+<span class="fc" id="L123">        return cose;</span>
     }
 
     public void setCose(Set&lt;COSEparams&gt; cose) {
@@ -128,7 +128,7 @@ public class ResourceServer {
 <span class="nc" id="L128">    }</span>
 
     public long getExpiration() {
-<span class="nc" id="L131">        return expiration;</span>
+<span class="fc" id="L131">        return expiration;</span>
     }
 
     public void setExpiration(long expiration) {
@@ -136,30 +136,30 @@ public class ResourceServer {
 <span class="nc" id="L136">    }</span>
 
     private byte[] hexStringToByteArray(String str) throws AceException {
-<span class="nc" id="L139">        String s = str.replace(&quot;0x&quot;, &quot;&quot;);</span>
+<span class="fc" id="L139">        String s = str.replace(&quot;0x&quot;, &quot;&quot;);</span>
         try {
-<span class="nc" id="L141">            Integer.parseInt(s, 16);</span>
+<span class="fc" id="L141">            Integer.parseInt(s, 16);</span>
         }
 <span class="nc" id="L143">        catch(NumberFormatException nfe)</span>
         {
 <span class="nc" id="L145">            throw new AceException(&quot;Hexadecimal value is not valid:\n &gt; &quot; + str);</span>
-<span class="nc" id="L146">        }</span>
+<span class="fc" id="L146">        }</span>
 
-<span class="nc" id="L148">        int len = s.length();</span>
-<span class="nc" id="L149">        byte[] data = new byte[len / 2];</span>
-<span class="nc bnc" id="L150" title="All 2 branches missed.">        for (int i = 0; i &lt; len; i += 2) {</span>
-<span class="nc" id="L151">            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) &lt;&lt; 4)</span>
-<span class="nc" id="L152">                    + Character.digit(s.charAt(i+1), 16));</span>
+<span class="fc" id="L148">        int len = s.length();</span>
+<span class="fc" id="L149">        byte[] data = new byte[len / 2];</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        for (int i = 0; i &lt; len; i += 2) {</span>
+<span class="fc" id="L151">            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) &lt;&lt; 4)</span>
+<span class="fc" id="L152">                    + Character.digit(s.charAt(i+1), 16));</span>
         }
-<span class="nc" id="L154">        return data;</span>
+<span class="fc" id="L154">        return data;</span>
     }
 
     private OneKey generateKey(byte[] key) throws CoseException {
-<span class="nc" id="L158">        CBORObject keyData = CBORObject.NewMap();</span>
-<span class="nc" id="L159">        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);</span>
-<span class="nc" id="L160">        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key));</span>
+<span class="fc" id="L158">        CBORObject keyData = CBORObject.NewMap();</span>
+<span class="fc" id="L159">        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);</span>
+<span class="fc" id="L160">        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key));</span>
 
-<span class="nc" id="L162">        return new OneKey(keyData);</span>
+<span class="fc" id="L162">        return new OneKey(keyData);</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
