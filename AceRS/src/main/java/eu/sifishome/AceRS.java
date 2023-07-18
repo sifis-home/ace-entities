@@ -455,7 +455,7 @@ public class AceRS implements Callable<Integer> {
      * @throws IOException
      * @throws AceException
      */
-    public void stop() throws IOException, AceException {
+    public static void stop() throws IOException, AceException {
         rs.stop();
         ai.close();
         deleteOldTokenFiles();
@@ -463,7 +463,7 @@ public class AceRS implements Callable<Integer> {
     }
 
 
-    private void deleteOldTokenFiles() throws IOException {
+    private static void deleteOldTokenFiles() throws IOException {
         //Delete lingering old files
         File tFile = new File(tokenFile);
         if (!tFile.delete() && tFile.exists()) {

@@ -97,6 +97,8 @@ Desktop.ini
 /apps/
 /docker-build/
 
+Californium3.properties
+
 ### flattened pom produced by flatten-maven-plugin and
 ### used to handle 'revision' and 'project.version' tags.
 ### https://sergiuoltean.com/2020/08/10/maven-parent-version/

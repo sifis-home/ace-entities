@@ -38,6 +38,8 @@ import picocli.CommandLine.ArgGroup;
 import eu.sifishome.peers.Client;
 import eu.sifishome.peers.ResourceServer;
 
+import static java.lang.Thread.sleep;
+
 /**
  * Authorization Server to test with AceClient and AceRS
  *
@@ -349,6 +351,9 @@ public class AceAS implements Callable<Integer> {
             dhtAddr = DEFAULT_DHT_ADDRESS;
         }
         if (isDhtEnabled) {
+            if (!Utils.isDhtReachable(dhtAddr, 2000, Integer.MAX_VALUE)) {
+                throw new AceException("Unable to connect to the DHT");
+            }
             // Possibly set up connection to the DHT for sending logging statements
             System.out.println("Connecting to the DHT for logging.");
             DhtLogger.setLogging(true);
