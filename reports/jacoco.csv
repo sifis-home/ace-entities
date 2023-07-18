@@ -1,0 +1,53 @@
+GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
+coverage/AceAS,eu.sifishome,AceAS.Opt,3,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome,DBHelper,306,0,32,0,84,0,26,0,10,0
+coverage/AceAS,eu.sifishome,AceAS.Peer,3,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},10,0,0,0,3,0,1,0,1,0
+coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},10,0,0,0,3,0,1,0,1,0
+coverage/AceAS,eu.sifishome,AceAS.AttributeChanger,43,0,0,0,13,0,2,0,2,0
+coverage/AceAS,eu.sifishome,AceAS.DhtArgs,6,0,0,0,2,0,1,0,1,0
+coverage/AceAS,eu.sifishome,AceAS,1073,0,58,0,202,0,47,0,18,0
+coverage/AceAS,eu.sifishome,AceAS.Args,3,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,Client,201,0,12,0,52,0,24,0,18,0
+coverage/AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},11,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,Client.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,Client.new HashSet() {...},10,0,0,0,1,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,ResourceServer.new HashSet() {...},15,0,0,0,2,0,1,0,1,0
+coverage/AceAS,eu.sifishome.peers,ResourceServer,252,0,12,0,62,0,30,0,24,0
+coverage/utils,eu.sifishome,Utils,317,0,26,0,60,0,23,0,10,0
+coverage/utils,eu.sifishome.json.outgoing,RequestPubMessage,10,0,0,0,5,0,3,0,3,0
+coverage/utils,eu.sifishome.json.outgoing,JsonOut,10,0,0,0,5,0,3,0,3,0
+coverage/utils,eu.sifishome.json.outgoing,OutValue,17,0,0,0,8,0,5,0,5,0
+coverage/utils,eu.sifishome.json.incoming,JsonIn,6,0,0,0,2,0,2,0,2,0
+coverage/utils,eu.sifishome.json.incoming,InValue,9,0,0,0,3,0,3,0,3,0
+coverage/utils,eu.sifishome.json.incoming,Message,12,0,0,0,4,0,4,0,4,0
+coverage/utils,eu.sifishome.json.incoming,Volatile,6,0,0,0,2,0,2,0,2,0
+coverage/AceRS,eu.sifishome,AceRS.PollingArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.TrlArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.Introspector,65,0,4,0,17,0,4,0,2,0
+coverage/AceRS,eu.sifishome,AceRS.NotificationArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.IntrospectionArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.TrlAddrArg,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS,748,0,46,0,144,0,39,0,16,0
+coverage/AceRS,eu.sifishome,AceRS.Args,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.Poller,71,0,4,0,24,0,4,0,2,0
+coverage/AceRS,eu.sifishome,AceRS.ObserveArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome.resources,BrightnessResource,54,0,0,0,11,0,3,0,3,0
+coverage/AceRS,eu.sifishome.resources,TempResource,54,0,0,0,11,0,3,0,3,0
+coverage/AceRS,eu.sifishome.resources,HelloWorldResource,12,0,0,0,5,0,2,0,2,0
+coverage/AceRS,eu.sifishome.resources,VolumeResource,54,0,0,0,11,0,3,0,3,0
+coverage/AceRS,eu.sifishome.resources,HumidityResource,54,0,0,0,11,0,3,0,3,0
+coverage/AceClientDht,eu.sifishome,TokenInfo,31,0,0,0,12,0,6,0,6,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.TrlAddrArg,3,0,0,0,1,0,1,0,1,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.NotificationArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.PollingArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.Requester,257,0,14,0,58,0,10,0,3,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.Poller,48,0,0,0,14,0,2,0,2,0
+coverage/AceClientDht,eu.sifishome,ExpirationTask,30,0,0,0,10,0,2,0,2,0
+coverage/AceClientDht,eu.sifishome,AceClientDht,1200,0,86,0,238,0,62,0,19,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.ObserveArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.DhtArgs,6,0,0,0,2,0,1,0,1,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.ClientCoapHandler,46,0,0,0,12,0,3,0,3,0
+coverage/AceClientDht,eu.sifishome,AceClientDht.Args,3,0,0,0,1,0,1,0,1,0

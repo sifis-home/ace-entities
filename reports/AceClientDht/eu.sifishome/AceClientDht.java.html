@@ -1,0 +1,939 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AceClientDht.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">coverage</a> &gt; <a href="../index.html" class="el_bundle">AceClientDht</a> &gt; <a href="index.source.html" class="el_package">eu.sifishome</a> &gt; <span class="el_source">AceClientDht.java</span></div><h1>AceClientDht.java</h1><pre class="source lang-java linenums">package eu.sifishome;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import com.upokecenter.cbor.CBORObject;
+import eu.sifishome.json.incoming.JsonIn;
+import eu.sifishome.json.outgoing.JsonOut;
+import eu.sifishome.json.outgoing.OutValue;
+import eu.sifishome.json.outgoing.RequestPubMessage;
+import jakarta.websocket.*;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapHandler;
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
+import org.eclipse.californium.oscore.OSException;
+import org.glassfish.tyrus.client.ClientManager;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
+import se.sics.ace.*;
+import se.sics.ace.client.GetToken;
+import se.sics.ace.coap.client.BasicTrlStore;
+import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.coap.client.TrlResponses;
+import se.sics.ace.examples.KissTime;
+import se.sics.ace.rs.AsRequestCreationHints;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.sql.Timestamp;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+
+/**
+ * Client to test with AceRS and AceAS
+ * This client implements the connection to the DHT through websockets
+ *
+ * @author Marco Rasori
+ */
+
+@Command(name = &quot;client&quot;,
+        mixinStandardHelpOptions = true,
+        version = &quot;1.0&quot;,
+        description = &quot;Runs an ACE Client.&quot;)
+@ClientEndpoint
+<span class="nc" id="L60">public class AceClientDht implements Callable&lt;Integer&gt; {</span>
+
+    private final static String DEFAULT_ASURI = &quot;localhost:&quot; + CoAP.DEFAULT_COAP_PORT;
+    private final static int DEFAULT_RS_PORT = 5685;
+    private final static String DEFAULT_RSURI = &quot;localhost:&quot; + DEFAULT_RS_PORT;
+    private final static int DEFAULT_MAX_DENIAL = Integer.MAX_VALUE;
+    private final static String DEFAULT_AUD = &quot;rs1&quot;;
+    private final static String DEFAULT_SCOPE = &quot;r_temp r_helloWorld&quot;;
+    private final static int DEFAULT_POLLING_INTERVAL = 10;
+    private final static String DEFAULT_TRL_ADDR = &quot;/trl&quot;;
+    private final static int DEFAULT_REQUEST_INTERVAL = 1;
+    private final static String DEFAULT_SENDER_ID = &quot;0x22&quot;;
+    private final static String DEFAULT_MASTER_SECRET = &quot;ClientA-AS-MS---&quot;;
+    private final static String DEFAULT_DHT_ADDRESS = &quot;ws://localhost:3000/ws&quot;;
+    private final static String DEFAULT_INCOMING_TOPIC = &quot;command_ace_ucs&quot;;
+    private final static String DEFAULT_OUTGOING_TOPIC = &quot;output_ace_ucs&quot;;
+    @Spec
+    CommandSpec spec;
+
+<span class="nc" id="L79">    static class DhtArgs {</span>
+<span class="nc" id="L80">        @Option(names = {&quot;-D&quot;, &quot;--dht&quot;},</span>
+                required = true,
+                description = &quot;Enable DHT.\n&quot;)
+        boolean isDhtEnabled = false;
+
+        @Option(names = {&quot;-w&quot;, &quot;--websocketuri&quot;},
+                required = false,
+                defaultValue = DEFAULT_DHT_ADDRESS,
+                description = &quot;The URI of the websocket where the DHT process is listening.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        String dhtUri;
+
+        @Option(names = {&quot;-I&quot;, &quot;--incomingtopic&quot;},
+                required = false,
+                defaultValue = DEFAULT_INCOMING_TOPIC,
+                description = &quot;The topic this client is subscribed to.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        private String incomingTopic;
+
+        @Option(names = {&quot;-O&quot;, &quot;--outgoingtopic&quot;},
+                required = false,
+                defaultValue = DEFAULT_OUTGOING_TOPIC,
+                description = &quot;The topic this client published on.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        private String outgoingTopic;
+    }
+
+    @Option(names = {&quot;-a&quot;, &quot;--asuri&quot;},
+            required = false,
+            defaultValue = DEFAULT_ASURI,
+            description = &quot;The URI of the Authorization Server.\n&quot; +
+                    &quot;Hostname and port MUST be specified.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String asUri;
+
+    @Option(names = {&quot;-r&quot;, &quot;--rsuri&quot;},
+            required = false,
+            defaultValue = DEFAULT_RSURI,
+            description = &quot;The URI of the Resource Server.\n&quot; +
+                    &quot;Hostname and port MUST be specified.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private List&lt;String&gt; rsUri;
+
+    @Option(names = {&quot;-s&quot;, &quot;--scope&quot;},
+            required = false,
+            defaultValue = DEFAULT_SCOPE,
+            description = &quot;The scope for which the Client asks the token.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private List&lt;String&gt; scope;
+
+    @Option(names = {&quot;-u&quot;, &quot;--audience&quot;},
+            required = false,
+            defaultValue = DEFAULT_AUD,
+            description = &quot;The audience for which the Client asks the token.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private List&lt;String&gt; aud;
+    // fixme: we could avoid assigning a default scope and audience.
+    //        The Client could not specify them in the request to the AS,
+    //        and the AS will use the default audience and scope that it
+    //        has for the Client.
+
+    @Option(names = {&quot;-d&quot;, &quot;--denials&quot;},
+            required = false,
+            defaultValue = &quot;&quot; + DEFAULT_MAX_DENIAL,
+            description = &quot;The maximum number of 4.01 Unauthorized responses &quot; +
+                    &quot;(from the same Resource Server) that the Client is &quot; +
+                    &quot;willing to receive before assuming that -- for some reason -- &quot; +
+                    &quot;the Resource Server removed its OSCORE Security Context &quot; +
+                    &quot;with the Client.\n&quot; +
+                    &quot;When this number is reached, the Client asks the Authorization &quot; +
+                    &quot;Server a new token with the same audience and scope.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private int denials;
+
+    @Option(names = {&quot;-q&quot;, &quot;--requestinterval&quot;},
+            required = false,
+            defaultValue = &quot;&quot; + DEFAULT_REQUEST_INTERVAL,
+            description = &quot;The time interval (in seconds) between two requests &quot; +
+                    &quot;to protected resources (at the same Resource Server).\n&quot; +
+                    &quot;This interval is independent of the number of resources &quot; +
+                    &quot;the Client requests to the Resource Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private int requestInterval;
+
+    @Option(names = {&quot;-m&quot;, &quot;--mastersecret&quot;},
+            required = false,
+            defaultValue = &quot;&quot; + DEFAULT_MASTER_SECRET,
+            description = &quot;The symmetric pre-shared key between the Client &quot; +
+                    &quot;and the Authorization Server. It is the master secret &quot; +
+                    &quot;used for the OSCORE Security Context.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String key;
+
+    @Option(names = {&quot;-x&quot;, &quot;--senderid&quot;},
+            required = false,
+            defaultValue = &quot;&quot; + DEFAULT_SENDER_ID,
+            description = &quot;The Sender ID in HEX used for &quot; +
+                    &quot;the OSCORE Security Context with the Authorization Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String senderId;
+
+<span class="nc" id="L181">    static class PollingArgs {</span>
+        @Option(names = {&quot;-p&quot;, &quot;--polling&quot;},
+                required = true,
+                description = &quot;The Client polls the trl endpoint at the AS.\n&quot;)
+        boolean polling;
+
+        @Option(names = {&quot;-e&quot;, &quot;--interval&quot;},
+                required = false,
+                defaultValue = &quot;&quot; + DEFAULT_POLLING_INTERVAL,
+                description = &quot;The time interval (in seconds) between two polling &quot; +
+                        &quot;requests to the trl endpoint.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        int interval;
+    }
+
+<span class="nc" id="L196">    static class ObserveArgs {</span>
+        @Option(names = {&quot;-o&quot;, &quot;--observe&quot;},
+                required = true,
+                description = &quot;The Client observes the trl endpoint at the AS.\n&quot;)
+        boolean observe;
+    }
+
+<span class="nc" id="L203">    static class TrlAddrArg {</span>
+        @Option(names = {&quot;-t&quot;, &quot;--trladdress&quot;},
+                required = false,
+                defaultValue = DEFAULT_TRL_ADDR,
+                description = &quot;The address of the trl endpoint, e.g., '/trl'.\n&quot; +
+                        &quot;If query parameters are specified, e.g., '/trl?pmax=10&amp;diff=3', &quot; +
+                        &quot;the mode is automatically assumed to be 'diff-query'.\n&quot; +
+                        &quot;If no query parameters are specified, the mode is assumed to &quot; +
+                        &quot;be 'full query'.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        String trlAddress;
+    }
+
+<span class="nc" id="L216">    static class NotificationArgs {</span>
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        PollingArgs pollingArgs;
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        ObserveArgs observeArgs;
+    }
+
+<span class="nc" id="L223">    static class Args {</span>
+        @ArgGroup(exclusive = true, multiplicity = &quot;1&quot;)
+        NotificationArgs notification;
+        @ArgGroup(exclusive = false)
+        TrlAddrArg trlAddrArg;
+        @ArgGroup(exclusive = false)
+        DhtArgs dhtArg;
+    }
+
+    @ArgGroup(exclusive = false)
+    Args args;
+
+    /**
+     * Symmetric key shared with the authorization server and used for the OSCORE context
+     */
+    private static byte[] key128;
+
+    private static OSCoreCtx ctx;
+    private static OSCoreCtxDB ctxDB;
+
+<span class="nc" id="L243">    private static final List&lt;Set&lt;Integer&gt;&gt; usedRecipientIds = new ArrayList&lt;&gt;();</span>
+
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
+<span class="nc" id="L247">    private static final byte[] idContext = new byte[]{0x44};</span>
+    private byte[] sId;
+
+<span class="nc" id="L250">    private boolean isPolling = false;</span>
+<span class="nc" id="L251">    private boolean isObserve = false;</span>
+
+    private int pollingInterval;
+
+    private String trlAddr;
+
+<span class="nc" id="L257">    private final Map&lt;String, TokenInfo&gt; validTokensMap = new HashMap&lt;&gt;();</span>
+
+    private CoapClient client4AS;
+
+    private boolean isDhtEnabled;
+    private String dhtAddr;
+    private String incomingTopic;
+    private String outgoingTopic;
+<span class="nc" id="L265">    private ScheduledExecutorService executorService = null;</span>
+
+<span class="nc" id="L267">    private final Set&lt;Timer&gt; expTasks = new HashSet&lt;&gt;();</span>
+
+
+    //--- MAIN
+    public static void main(String[] args) {
+
+<span class="nc" id="L273">        int exitCode = new CommandLine(new AceClientDht()).execute(args);</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (exitCode != 0) {</span>
+<span class="nc" id="L275">            System.exit(exitCode);</span>
+        }
+<span class="nc" id="L277">    }</span>
+
+
+    @Override
+    public Integer call() throws Exception {
+
+<span class="nc" id="L283">        parseInputs();</span>
+
+<span class="nc bnc" id="L285" title="All 2 branches missed.">        if (!Utils.isServerReachable(&quot;Authorization Server&quot;, asUri, 2000L, Integer.MAX_VALUE)) {</span>
+<span class="nc" id="L286">            return -1;</span>
+        }
+
+        // initialize OSCORE context
+<span class="nc" id="L290">        ctx = new OSCoreCtx(key128, true, null,</span>
+                sId, // client identity
+                new byte[]{0x33}, // AS identity
+                null, null, null, idContext, MAX_UNFRAGMENTED_SIZE);
+
+<span class="nc" id="L295">        ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();</span>
+
+<span class="nc bnc" id="L297" title="All 2 branches missed.">        for (int i = 0; i &lt; 4; i++) {</span>
+            // Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+            // The set with index 0 refers to Sender IDs with size 1 byte
+<span class="nc" id="L300">            usedRecipientIds.add(new HashSet&lt;&gt;());</span>
+        }
+
+<span class="nc" id="L303">        client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);</span>
+
+<span class="nc bnc" id="L305" title="All 4 branches missed.">        if (isPolling || isObserve) {</span>
+<span class="nc" id="L306">            TrlStore trlStore = new BasicTrlStore();</span>
+
+<span class="nc bnc" id="L308" title="All 2 branches missed.">            if (isObserve) {</span>
+                // 1. Make Observe request to the /trl endpoint
+<span class="nc" id="L310">                ClientCoapHandler handler = new ClientCoapHandler(trlStore);</span>
+<span class="nc" id="L311">                CoapObserveRelation relation =</span>
+<span class="nc" id="L312">                        OSCOREProfileRequests.makeObserveRequest(</span>
+                                client4AS, asUri + trlAddr, handler);
+            }
+
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            if (isPolling) {</span>
+                // 1. Make poll request to the /trl endpoint
+<span class="nc" id="L318">                executorService = Executors</span>
+<span class="nc" id="L319">                        .newSingleThreadScheduledExecutor();</span>
+<span class="nc" id="L320">                executorService.scheduleAtFixedRate(</span>
+                        new Poller(client4AS, asUri + trlAddr, trlStore),
+                        pollingInterval, pollingInterval, TimeUnit.SECONDS);
+            }
+        }
+
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        for (int i = 0; i &lt; rsUri.size(); i++) {</span>
+<span class="nc" id="L327">            Integer requester = new Requester(</span>
+<span class="nc" id="L328">                    client4AS, rsUri.get(i), aud.get(i), scope.get(i), executorService)</span>
+<span class="nc" id="L329">                    .call();</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if (requester == 0)</span>
+<span class="nc" id="L331">                return 0;</span>
+        }
+
+<span class="nc" id="L334">        return 0;</span>
+    }
+
+    class Poller implements Runnable {
+
+        CoapClient client4AS;
+        String trlUri;
+        TrlStore trlStore;
+
+<span class="nc" id="L343">        public Poller(CoapClient client4AS, String trlUri, TrlStore trlStore) {</span>
+<span class="nc" id="L344">            this.client4AS = client4AS;</span>
+<span class="nc" id="L345">            this.trlUri = trlUri;</span>
+<span class="nc" id="L346">            this.trlStore = trlStore;</span>
+<span class="nc" id="L347">        }</span>
+
+        @Override
+        public void run() {
+            try {
+<span class="nc" id="L352">                System.out.println(&quot;Now polling:&quot; + new Timestamp(System.currentTimeMillis()));</span>
+<span class="nc" id="L353">                CoapResponse responseTrl =</span>
+<span class="nc" id="L354">                        OSCOREProfileRequests.makePollRequest(</span>
+                                client4AS, trlUri);
+<span class="nc" id="L356">                TrlResponses.processResponse(responseTrl, trlStore);</span>
+<span class="nc" id="L357">                purgeRevokedTokens(trlStore);</span>
+<span class="nc" id="L358">            } catch (AceException e) {</span>
+<span class="nc" id="L359">                e.printStackTrace();</span>
+<span class="nc" id="L360">            }</span>
+<span class="nc" id="L361">        }</span>
+    }
+
+
+    public class ClientCoapHandler implements CoapHandler {
+
+        private final TrlStore trlStore;
+
+<span class="nc" id="L369">        public ClientCoapHandler(TrlStore trlStore) {</span>
+<span class="nc" id="L370">            this.trlStore = trlStore;</span>
+<span class="nc" id="L371">        }</span>
+
+        @Override
+        public void onLoad(CoapResponse response) {
+            try {
+<span class="nc" id="L376">                TrlResponses.processResponse(response, trlStore);</span>
+<span class="nc" id="L377">                purgeRevokedTokens(trlStore);</span>
+<span class="nc" id="L378">            } catch (AssertionError | AceException error) {</span>
+<span class="nc" id="L379">                System.out.println(&quot;Assert:&quot; + error);</span>
+<span class="nc" id="L380">            }</span>
+<span class="nc" id="L381">            System.out.println(&quot;NOTIFICATION: &quot; + response.advanced());</span>
+<span class="nc" id="L382">        }</span>
+
+        @Override
+        public void onError() {
+<span class="nc" id="L386">            System.err.println(&quot;OBSERVE FAILED&quot;);</span>
+<span class="nc" id="L387">        }</span>
+    }
+
+
+    public void purgeRevokedTokens(TrlStore trlStore) {
+
+<span class="nc" id="L393">        Set&lt;String&gt; trl = trlStore.getLocalTrl();</span>
+<span class="nc" id="L394">        Set&lt;String&gt; intersection = new HashSet&lt;&gt;(validTokensMap.keySet());</span>
+<span class="nc" id="L395">        intersection.retainAll(trl);</span>
+
+<span class="nc" id="L397">        synchronized (validTokensMap) {</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">            for (String th : intersection) {</span>
+<span class="nc" id="L399">                validTokensMap.remove(th);</span>
+<span class="nc" id="L400">            }</span>
+<span class="nc" id="L401">            validTokensMap.notifyAll();</span>
+<span class="nc" id="L402">        }</span>
+<span class="nc" id="L403">    }</span>
+
+
+    class Requester implements Callable {
+
+        CoapClient client4AS;
+        final CoapClient client4RS;
+        String aud;
+        String scope;
+        String rsAddr;
+<span class="nc" id="L413">        int denialsCount = 0;</span>
+        /*
+         * executorService for the Poller.
+         */
+        ScheduledExecutorService es;
+
+<span class="nc" id="L419">        public Requester(CoapClient client4AS, String rsAddr, String aud, String scope, ScheduledExecutorService es) {</span>
+<span class="nc" id="L420">            this.client4AS = client4AS;</span>
+<span class="nc" id="L421">            this.rsAddr = rsAddr;</span>
+<span class="nc" id="L422">            this.aud = aud;</span>
+<span class="nc" id="L423">            this.scope = scope;</span>
+<span class="nc" id="L424">            this.client4RS = new CoapClient(rsAddr);</span>
+<span class="nc" id="L425">            this.es = es;</span>
+<span class="nc" id="L426">        }</span>
+
+        @Override
+        public Integer call() throws Exception {
+
+<span class="nc" id="L431">            TimeProvider time = new KissTime();</span>
+
+            while (true) {
+
+                // 1. Get the token
+                String tokenHash;
+                try {
+<span class="nc" id="L438">                    tokenHash = getTokenIfNotPresent(aud, scope);</span>
+<span class="nc" id="L439">                } catch (AceException e) {</span>
+                    //System.out.println(&quot;Token not issued: &quot; + e.getMessage());
+<span class="nc" id="L441">                    shutdown();</span>
+<span class="nc" id="L442">                    System.out.println(&quot;Quitting.&quot;);</span>
+<span class="nc" id="L443">                    return -1;</span>
+<span class="nc" id="L444">                }</span>
+
+                // FIXME (when ACE library implements this)
+                // since the AS-to-Client response, at the moment, does not include neither EXI nor EXP,
+                // we use a hardcoded value.
+
+                // Flow: try to extract EXP.
+                //       If it works, set timeToExpire = EXP - currentTime;
+                //       If it fails, extract EXI and set timeToExpire = EXI;
+                //       Post the token.
+<span class="nc" id="L454">                long timeToExpire = 40000L;</span>
+
+<span class="nc" id="L456">                Timer timer = new Timer();</span>
+<span class="nc" id="L457">                timer.schedule(new ExpirationTask(tokenHash, validTokensMap), timeToExpire);</span>
+<span class="nc" id="L458">                expTasks.add(timer);</span>
+
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                if (!Utils.isServerReachable(&quot;Resource Server&quot;, rsAddr, 2000L, Integer.MAX_VALUE)) {</span>
+<span class="nc" id="L461">                    return -1;</span>
+                }
+
+                // 2. Post the token
+                try {
+<span class="nc" id="L466">                    postTokenIfNotPosted(tokenHash, rsAddr);</span>
+<span class="nc" id="L467">                } catch (AceException e) {</span>
+                    //System.out.println(&quot;Token not posted: &quot; +e.getMessage());
+                    //client4AS.shutdown();
+<span class="nc" id="L470">                    client4RS.shutdown();</span>
+<span class="nc" id="L471">                    shutdown();</span>
+<span class="nc" id="L472">                    System.out.println(&quot;Quitting.&quot;);</span>
+<span class="nc" id="L473">                    return -1;</span>
+<span class="nc" id="L474">                }</span>
+
+<span class="nc" id="L476">                OSCOREProfileRequests.setClient(client4RS, ctxDB);</span>
+
+                // 3. Make GET requests to access the resources
+<span class="nc" id="L479">                List&lt;String&gt; resources = new ArrayList&lt;&gt;(</span>
+<span class="nc" id="L480">                        Arrays.asList(validTokensMap.get(tokenHash).getScope().split(&quot; &quot;)));</span>
+
+<span class="nc" id="L482">                resources.replaceAll(s1 -&gt; s1.substring(s1.indexOf(&quot;_&quot;) + 1));</span>
+
+<span class="nc" id="L484">                int i = 0;</span>
+<span class="nc bnc" id="L485" title="All 4 branches missed.">                while (denialsCount &lt; denials &amp;&amp; validTokensMap.containsKey(tokenHash)) {</span>
+<span class="nc" id="L486">                    boolean isSuccess = getResource(client4RS, rsAddr + &quot;/&quot; + resources.get(i));</span>
+
+<span class="nc bnc" id="L488" title="All 2 branches missed.">                    if (!isSuccess) {</span>
+<span class="nc" id="L489">                        denialsCount++;</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                        if (denialsCount == denials) {</span>
+<span class="nc" id="L491">                            System.out.println(&quot;Too many denials.&quot;);</span>
+<span class="nc" id="L492">                            validTokensMap.remove(tokenHash); // assume the token is not valid anymore</span>
+<span class="nc" id="L493">                            break;</span>
+                        }
+                    }
+<span class="nc" id="L496">                    i = (i + 1) % resources.size();</span>
+
+                    // wait 'requestInterval' before making another request,
+                    // or wake up and ignore the remaining time if the
+                    // current tokenhash has been removed from the variable
+                    // validTokensMap
+<span class="nc" id="L502">                    long curTime = time.getCurrentTime();</span>
+<span class="nc" id="L503">                    long deadline = curTime + requestInterval * 1000L;</span>
+
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                    while (time.getCurrentTime() &lt; deadline) {</span>
+<span class="nc" id="L506">                        long timeout = deadline - time.getCurrentTime();</span>
+<span class="nc" id="L507">                        synchronized (validTokensMap) {</span>
+<span class="nc" id="L508">                            validTokensMap.wait(timeout);</span>
+<span class="nc bnc" id="L509" title="All 2 branches missed.">                            if (!validTokensMap.containsKey(tokenHash)) {</span>
+<span class="nc" id="L510">                                System.out.println(&quot;Learnt that the token is not valid anymore&quot;);</span>
+<span class="nc" id="L511">                                break;</span>
+                            }
+<span class="nc" id="L513">                        }</span>
+<span class="nc" id="L514">                    }</span>
+<span class="nc" id="L515">                }</span>
+
+<span class="nc" id="L517">                System.out.println(&quot;Trying to get a new Access Token from the AS...&quot;);</span>
+<span class="nc" id="L518">                denialsCount = 0;</span>
+<span class="nc" id="L519">            }</span>
+        }
+    }
+
+
+    public Response getToken(CoapClient client4AS, String aud, String scope) throws AceException, OSException {
+<span class="nc" id="L525">        CBORObject params = GetToken.getClientCredentialsRequest(</span>
+<span class="nc" id="L526">                CBORObject.FromObject(aud), CBORObject.FromObject(scope), null);</span>
+
+<span class="nc" id="L528">        Response asRes = OSCOREProfileRequests.getToken(</span>
+                client4AS, asUri + &quot;/token&quot;, params);
+
+<span class="nc bnc" id="L531" title="All 4 branches missed.">        if (asRes.getCode().isServerError() || asRes.getCode().isClientError()) {</span>
+<span class="nc" id="L532">            throw new AceException(&quot;Failure response received from the AS: Token not issued&quot;);</span>
+        }
+<span class="nc" id="L534">        return asRes;</span>
+    }
+
+
+    public boolean postToken(String rsUri, Response asRes, Map&lt;Short, CBORObject&gt; map) throws AceException, OSException {
+        // 2. Post the Access Token to the /authz-info endpoint at the RS
+<span class="nc bnc" id="L540" title="All 2 branches missed.">        if (map.containsKey(Constants.CNF)) {</span>
+<span class="nc" id="L541">            Response rsRes = OSCOREProfileRequests.postToken(</span>
+                    rsUri + &quot;/authz-info&quot;, asRes, ctxDB, usedRecipientIds);
+<span class="nc" id="L543">            System.out.println(&quot;\nResponse from RS (token post)&quot;);</span>
+<span class="nc" id="L544">            System.out.println(&quot;Response Code:       &quot; + rsRes.getCode());</span>
+
+<span class="nc bnc" id="L546" title="All 4 branches missed.">            if (rsRes.getCode().isServerError() || rsRes.getCode().isClientError()) {</span>
+<span class="nc" id="L547">                throw new AceException(&quot;Failure response received from the RS (Posting new token)&quot;);</span>
+            }
+<span class="nc" id="L549">        } else {</span>
+<span class="nc" id="L550">            CoapResponse rsRes = OSCOREProfileRequests.postTokenUpdate(</span>
+                    rsUri + &quot;/authz-info&quot;, asRes, ctxDB);
+<span class="nc" id="L552">            System.out.println(&quot;\nResponse from RS (token update post)&quot;);</span>
+<span class="nc" id="L553">            System.out.println(&quot;Response Code:       &quot; + rsRes.getCode());</span>
+
+<span class="nc bnc" id="L555" title="All 4 branches missed.">            if (rsRes.getCode().isServerError() || rsRes.getCode().isClientError()) {</span>
+<span class="nc" id="L556">                throw new AceException(&quot;Failure response received from the RS (posting token update)&quot;);</span>
+            }
+        }
+<span class="nc" id="L559">        return true;</span>
+    }
+
+
+    public boolean getResource(CoapClient client, String resourceUri)
+            throws ConnectorException, IOException {
+
+<span class="nc" id="L566">        CoapResponse res = doGetRequest(client, resourceUri);</span>
+<span class="nc" id="L567">        System.out.println(&quot;\nResponse Code:       &quot; + res.getCode() + &quot; - &quot; + res.advanced().getCode().name());</span>
+
+<span class="nc bnc" id="L569" title="All 2 branches missed.">        if (res.getCode().isSuccess()) {</span>
+<span class="nc" id="L570">            System.out.println(&quot;Response Message:    &quot; + res.getResponseText() + &quot;\n&quot;);</span>
+<span class="nc bnc" id="L571" title="All 4 branches missed.">        } else if (res.getCode().isServerError() || res.getCode().isClientError()) {</span>
+
+<span class="nc bnc" id="L573" title="All 2 branches missed.">            if (res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR) {</span>
+                // print AS Request Creation Hints
+<span class="nc" id="L575">                System.out.println(&quot;Response Message:    &quot; +</span>
+<span class="nc" id="L576">                        AsRequestCreationHints.parseHints(CBORObject.DecodeFromBytes(res.getPayload())) + &quot;\n&quot;);</span>
+            }
+            // increase the counter only if UNAUTHZ is received
+<span class="nc bnc" id="L579" title="All 2 branches missed.">            return !res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED);</span>
+        }
+<span class="nc" id="L581">        return true;</span>
+    }
+
+
+    public CoapResponse doGetRequest(CoapClient client, String resourceUri)
+            throws ConnectorException, IOException {
+
+<span class="nc" id="L588">        client.setURI(resourceUri);</span>
+
+<span class="nc" id="L590">        Request request = new Request(CoAP.Code.GET);</span>
+<span class="nc" id="L591">        request.getOptions().setOscore(new byte[0]);</span>
+<span class="nc" id="L592">        return client.advanced(request);</span>
+    }
+
+    // post method. Need to modify the Requester. What do I post, a random value?
+//    public CoapResponse doPostRequest(CoapClient client, String resourceUri, String payload)
+//            throws ConnectorException, IOException {
+//
+//        client.setURI(resourceUri);
+//
+//        Request request = new Request(CoAP.Code.POST);
+//        request.getOptions().setOscore(new byte[0]);
+//        request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
+//        CBORObject payloadCbor  = CBORObject.FromObject(payload);
+//        request.setPayload(payloadCbor.EncodeToBytes());
+//        return client.advanced(request);
+//    }
+
+    private void parseInputs() throws ParameterException {
+
+<span class="nc bnc" id="L611" title="All 6 branches missed.">        if (scope.size() &gt; 1 || rsUri.size() &gt; 1 || aud.size() &gt; 1) {</span>
+<span class="nc bnc" id="L612" title="All 4 branches missed.">            if (scope.size() != rsUri.size() || rsUri.size() != aud.size()) {</span>
+<span class="nc" id="L613">                throw new ParameterException(spec.commandLine(),</span>
+                        &quot;\nWhen specifying more than one --aud, --scope, or --rsuri, \n&quot; +
+                                &quot;the complete list of triplets must be given.\n&quot; +
+                                &quot;If one occurrence of --aud, --scope, or --rsuri is found, that value is used \n&quot; +
+                                &quot;for the given arguments, and default value is used for the other arguments.\n\n&quot; +
+                                &quot;Example: --aud rs1 --scope \&quot;scope1\&quot; \n    is valid.\n&quot; +
+                                &quot;The default value for --rsuri will be used.\n\n&quot; +
+                                &quot;Example: --aud rs1 --scope \&quot;scope1\&quot; --aud rs2 \n    is NOT valid.\n&quot; +
+                                &quot;If two --aud are specified, two --scope and two --rsuri must be specified.\n&quot; +
+                                &quot;The first occurrence of each argument composes a triplets.\n&quot;);
+            }
+        }
+
+        // check asUri and prepend the protocol if needed
+<span class="nc" id="L627">        asUri = Utils.validateUri(asUri, spec);</span>
+        // check rsUri and prepend the protocol if needed
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        for (int i = 0; i &lt; rsUri.size(); i++) {</span>
+<span class="nc" id="L630">            rsUri.set(i, Utils.validateUri(rsUri.get(i), spec));</span>
+        }
+
+        // convert senderId input from hex string to byte array
+<span class="nc" id="L634">        sId = Utils.hexStringToByteArray(senderId, spec);</span>
+
+        // convert the OSCORE master secret from string to byte array
+<span class="nc" id="L637">        key128 = key.getBytes(Constants.charset);</span>
+
+        // parse revoked tokens notification type
+        try {
+<span class="nc" id="L641">            isObserve = this.args.notification.observeArgs.observe;</span>
+<span class="nc" id="L642">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L643">            isObserve = false;</span>
+<span class="nc" id="L644">        }</span>
+        try {
+<span class="nc" id="L646">            isPolling = this.args.notification.pollingArgs.polling;</span>
+<span class="nc" id="L647">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L648">            isPolling = false;</span>
+<span class="nc" id="L649">        }</span>
+        try {
+<span class="nc" id="L651">            pollingInterval = this.args.notification.pollingArgs.interval;</span>
+<span class="nc" id="L652">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L653">            pollingInterval = DEFAULT_POLLING_INTERVAL;</span>
+<span class="nc" id="L654">        }</span>
+        try {
+<span class="nc" id="L656">            trlAddr = this.args.trlAddrArg.trlAddress;</span>
+<span class="nc" id="L657">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L658">            trlAddr = DEFAULT_TRL_ADDR;</span>
+<span class="nc" id="L659">        }</span>
+
+        // parse DHT arguments
+        try {
+<span class="nc" id="L663">            isDhtEnabled = this.args.dhtArg.isDhtEnabled;</span>
+<span class="nc bnc" id="L664" title="All 2 branches missed.">            if (isDhtEnabled) {</span>
+                try {
+<span class="nc" id="L666">                    dhtAddr = this.args.dhtArg.dhtUri;</span>
+<span class="nc" id="L667">                } catch (NullPointerException e) {</span>
+<span class="nc" id="L668">                    dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L669">                }</span>
+                try {
+<span class="nc" id="L671">                    incomingTopic = this.args.dhtArg.incomingTopic;</span>
+<span class="nc" id="L672">                } catch (NullPointerException e) {</span>
+<span class="nc" id="L673">                    incomingTopic = DEFAULT_INCOMING_TOPIC;</span>
+<span class="nc" id="L674">                }</span>
+                try {
+<span class="nc" id="L676">                    outgoingTopic = this.args.dhtArg.outgoingTopic;</span>
+<span class="nc" id="L677">                } catch (NullPointerException e) {</span>
+<span class="nc" id="L678">                    outgoingTopic = DEFAULT_OUTGOING_TOPIC;</span>
+<span class="nc" id="L679">                }</span>
+            }
+<span class="nc" id="L681">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L682">            isDhtEnabled = false;</span>
+<span class="nc" id="L683">            dhtAddr = DEFAULT_DHT_ADDRESS;</span>
+<span class="nc" id="L684">            incomingTopic = DEFAULT_INCOMING_TOPIC;</span>
+<span class="nc" id="L685">            outgoingTopic = DEFAULT_OUTGOING_TOPIC;</span>
+<span class="nc" id="L686">        }</span>
+<span class="nc bnc" id="L687" title="All 2 branches missed.">        if (isDhtEnabled) {</span>
+<span class="nc" id="L688">            ClientManager dhtClient = ClientManager.createClient();</span>
+            try {
+<span class="nc" id="L690">                URI uri = new URI(dhtAddr);</span>
+<span class="nc" id="L691">                dhtClient.asyncConnectToServer(this, uri);</span>
+<span class="nc" id="L692">            } catch (DeploymentException | URISyntaxException e) {</span>
+<span class="nc" id="L693">                System.err.println(&quot;Error: Failed to connect to DHT&quot;);</span>
+<span class="nc" id="L694">                e.printStackTrace();</span>
+<span class="nc" id="L695">            }</span>
+        }
+<span class="nc" id="L697">    }</span>
+
+    @OnOpen
+    public void onOpen(Session session) {
+<span class="nc" id="L701">        System.out.println(&quot;[DHT] - Connected &quot; + session.getId());</span>
+<span class="nc" id="L702">    }</span>
+
+    @OnClose
+    public void onClose(Session session, CloseReason closeReason) {
+<span class="nc" id="L706">        System.out.println(&quot;[DHT] - Session &quot; + session.getId() + &quot; closed because &quot; + closeReason);</span>
+<span class="nc" id="L707">    }</span>
+
+
+    @OnMessage
+    public String onMessage(String message, Session session) throws AceException, OSException, ConnectorException, IOException {
+
+        // Parse incoming JSON string from DHT
+        JsonIn parsed;
+        String topicField;
+        try {
+<span class="nc" id="L717">            parsed = new Gson().fromJson(message, JsonIn.class);</span>
+<span class="nc" id="L718">            topicField = parsed.getVolatile().getValue().getTopic();</span>
+<span class="nc" id="L719">        } catch (JsonSyntaxException | NullPointerException e) {</span>
+//            System.out.println(&quot;[DHT] - Unable to parse JSON. &quot; +
+//                    &quot;Its JSON schema either differs from the expected one, &quot; +
+//                    &quot;or the JSON is malformed.&quot;);
+<span class="nc" id="L723">            return null;</span>
+<span class="nc" id="L724">        }</span>
+
+        // Check if the topic name matches
+<span class="nc bnc" id="L727" title="All 2 branches missed.">        if (!topicField.equals(incomingTopic)) {</span>
+<span class="nc" id="L728">            System.out.println(&quot;[DHT] - Message discarded. &quot; +</span>
+                    &quot;The topics does not match (\&quot;&quot; + topicField + &quot;\&quot; != \&quot;&quot; + incomingTopic + &quot;\&quot;)&quot;);
+<span class="nc" id="L730">            return null;</span>
+        }
+<span class="nc" id="L732">        System.out.println(&quot;[DHT] - The topic matches the one the Client is interested in (\&quot;&quot; + incomingTopic + &quot;\&quot;)&quot;);</span>
+
+<span class="nc" id="L734">        String scopeField = parsed.getVolatile().getValue().getMessage().getScope();</span>
+<span class="nc" id="L735">        String audienceField = parsed.getVolatile().getValue().getMessage().getAudience();</span>
+<span class="nc" id="L736">        String addressField = parsed.getVolatile().getValue().getMessage().getAddress();</span>
+
+        String tokenHash;
+        try {
+<span class="nc bnc" id="L740" title="All 2 branches missed.">            if (!Utils.isServerReachable(&quot;Authorization Server&quot;, asUri, 2000L, 10)) {</span>
+                // TODO define a JSON message to be returned as error?
+<span class="nc" id="L742">                return null;</span>
+            }
+            // 1. get the token
+<span class="nc" id="L745">            tokenHash = getTokenIfNotPresent(audienceField, scopeField);</span>
+
+<span class="nc bnc" id="L747" title="All 2 branches missed.">            if (!Utils.isServerReachable(&quot;Resource Server&quot;, addressField, 2000L, 10)) {</span>
+                // TODO define a JSON message to be returned as error?
+<span class="nc" id="L749">                return null;</span>
+            }
+            // 2. post the token
+<span class="nc" id="L752">            postTokenIfNotPosted(tokenHash, addressField);</span>
+<span class="nc" id="L753">        } catch (AceException e) {</span>
+<span class="nc" id="L754">            System.out.println(e.getMessage());</span>
+<span class="nc" id="L755">            return null;</span>
+<span class="nc" id="L756">        }</span>
+
+<span class="nc" id="L758">        TokenInfo tokenInfo = validTokensMap.get(tokenHash);</span>
+
+<span class="nc" id="L760">        CoapClient client4RS = new CoapClient(addressField);</span>
+<span class="nc" id="L761">        OSCOREProfileRequests.setClient(client4RS, ctxDB);</span>
+
+        // extract the resources from the scope
+<span class="nc" id="L764">        List&lt;String&gt; resources = new ArrayList&lt;&gt;(</span>
+<span class="nc" id="L765">                Arrays.asList(tokenInfo.getScope().split(&quot; &quot;)));</span>
+<span class="nc" id="L766">        resources.replaceAll(s1 -&gt; s1.substring(s1.indexOf(&quot;_&quot;) + 1));</span>
+
+        // make a request for each resource and publish the result on the DHT
+<span class="nc" id="L769">        List&lt;String&gt; responses = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        for (String res : resources) {</span>
+<span class="nc" id="L771">            String resourceUri = addressField + &quot;/&quot; + res;</span>
+<span class="nc" id="L772">            CoapResponse response =</span>
+<span class="nc" id="L773">                    doGetRequest(client4RS, resourceUri);</span>
+<span class="nc" id="L774">            responses.add(&quot;Response from &quot; + resourceUri + &quot; : [&quot; + response.toString() + &quot;]&quot;);</span>
+<span class="nc" id="L775">        }</span>
+
+        // build a single string containing all the responses
+<span class="nc" id="L778">        String responseString = String.join(&quot;, &quot;, responses);</span>
+
+        // Build outgoing JSON to DHT
+<span class="nc" id="L781">        JsonOut outgoing = new JsonOut();</span>
+<span class="nc" id="L782">        RequestPubMessage pubMsg = new RequestPubMessage();</span>
+<span class="nc" id="L783">        OutValue outVal = new OutValue();</span>
+<span class="nc" id="L784">        outVal.setTopic(outgoingTopic);</span>
+<span class="nc" id="L785">        outVal.setMessage(responseString);</span>
+<span class="nc" id="L786">        pubMsg.setValue(outVal);</span>
+<span class="nc" id="L787">        outgoing.setRequestPubMessage(pubMsg);</span>
+
+<span class="nc" id="L789">        String jsonOut = new GsonBuilder().disableHtmlEscaping().create().toJson(outgoing);</span>
+
+<span class="nc" id="L791">        System.out.println(&quot;[DHT] - Outgoing JSON: &quot; + jsonOut);</span>
+
+        // publish the json on the DHT
+<span class="nc" id="L794">        return jsonOut;</span>
+    }
+
+    /**
+     * Ask the Access Token to the AS.
+     * If the Access Token is obtained, compute its tokenhash,
+     * and save information about it in a TokenInfo structure.
+     * Also, save in the map validTokensMap the tokenHash and the TokenInfo.
+     *
+     * @param aud   the audience asked
+     * @param scope the scope asked
+     * @return the tokenhash of the issued token
+     * @throws AceException if some error occurs requesting the token,
+     *                      computing the hash, or extracting the parameters
+     *                      from the AS response
+     */
+    public String getTokenAndUpdateValidTokens(String aud, String scope) throws AceException {
+
+        // get the token
+        Response asRes;
+        try {
+<span class="nc" id="L815">            asRes = getToken(client4AS, aud, scope);</span>
+<span class="nc" id="L816">        } catch (AceException | OSException e) {</span>
+<span class="nc" id="L817">            throw new AceException(&quot;Error getting token: &quot; + e.getMessage());</span>
+<span class="nc" id="L818">        }</span>
+
+        // extract the payload of the response
+<span class="nc" id="L821">        CBORObject resAs = CBORObject.DecodeFromBytes(asRes.getPayload());</span>
+
+        // convert the CBOR object into a map
+<span class="nc" id="L824">        Map&lt;Short, CBORObject&gt; map = Constants.getParams(resAs);</span>
+
+        // print the response
+<span class="nc" id="L827">        System.out.println(&quot;\nResponse from AS&quot;);</span>
+<span class="nc" id="L828">        System.out.println(&quot;Response Code:       &quot; + asRes.getCode());</span>
+
+        // compute the tokenhash
+<span class="nc" id="L831">        String tokenHash = Util.computeTokenHash(map.get(Constants.ACCESS_TOKEN));</span>
+
+        // extract the scope for which this token has been issued
+<span class="nc" id="L834">        String allowedScopes =</span>
+<span class="nc bnc" id="L835" title="All 2 branches missed.">                map.get(Constants.SCOPE) == null ? scope : map.get(Constants.SCOPE).AsString();</span>
+
+        // Create a TokenInfo and add it to the validTokensMap
+<span class="nc" id="L838">        validTokensMap.put(tokenHash, new TokenInfo(aud, allowedScopes, asRes, false));</span>
+<span class="nc" id="L839">        return tokenHash;</span>
+    }
+
+    /**
+     * Check if a token for the given audience and scope is already present among
+     * the valid tokens. If not, ask for a new token to the AS.
+     * In either case, return the tokenHash of the token, which can be used as key
+     * in the validTokensMap to retrieve additional information.
+     *
+     * @param audience the audience
+     * @param scope    the scope
+     * @return the tokenhash of a token valid for that audience and scope
+     * @throws AceException if an error occurs getting the token
+     */
+    private String getTokenIfNotPresent(String audience, String scope) throws AceException {
+<span class="nc" id="L854">        boolean isTokenPresent = false;</span>
+<span class="nc" id="L855">        String tokenHash = null;</span>
+
+<span class="nc bnc" id="L857" title="All 2 branches missed.">        for (Map.Entry&lt;String, TokenInfo&gt; pair : validTokensMap.entrySet()) {</span>
+<span class="nc bnc" id="L858" title="All 2 branches missed.">            if (isSubsetOf(scope, pair.getValue().getScope())</span>
+<span class="nc bnc" id="L859" title="All 2 branches missed.">                    &amp;&amp; isSubsetOf(audience, pair.getValue().getAudience())) {</span>
+<span class="nc" id="L860">                isTokenPresent = true;</span>
+<span class="nc" id="L861">                tokenHash = pair.getKey();</span>
+<span class="nc" id="L862">                System.out.println(&quot;A token is already present for scope \&quot;&quot; +</span>
+                        scope + &quot;\&quot; and audience \&quot;&quot; + audience + &quot;\&quot;&quot;);
+<span class="nc" id="L864">                break;</span>
+            }
+<span class="nc" id="L866">        }</span>
+
+<span class="nc bnc" id="L868" title="All 2 branches missed.">        if (!isTokenPresent) {</span>
+            // get a new token
+<span class="nc" id="L870">            tokenHash = getTokenAndUpdateValidTokens(audience, scope);</span>
+        }
+<span class="nc" id="L872">        return tokenHash;</span>
+    }
+
+    /**
+     * Given two strings (subsetString and setString), first create
+     * a set out of each one by splitting it based on the space character.
+     * Then, assess if the elements derived from the subsetString are
+     * a subset of the elements derived from the setString.
+     *
+     * @param subsetString the string containing the elements that form the subset
+     * @param setString    the string containing the elements that form the set
+     * @return true, if the elements of the subset are all contained in the set.
+     * false, otherwise.
+     */
+    private boolean isSubsetOf(String subsetString, String setString) {
+<span class="nc" id="L887">        Set&lt;String&gt; subset</span>
+<span class="nc" id="L888">                = Stream.of(subsetString.trim().split(&quot;\\s* \\s*&quot;))</span>
+<span class="nc" id="L889">                .collect(Collectors.toSet());</span>
+
+<span class="nc" id="L891">        Set&lt;String&gt; set</span>
+<span class="nc" id="L892">                = Stream.of(setString.trim().split(&quot;\\s* \\s*&quot;))</span>
+<span class="nc" id="L893">                .collect(Collectors.toSet());</span>
+
+<span class="nc" id="L895">        return set.containsAll(subset);</span>
+    }
+
+    /**
+     * Check if the token identified by the provided tokenhash has been already posted.
+     * If so, do nothing. Otherwise, post the token at the provided address
+     *
+     * @param tokenHash the tokenhash of the token to check and optionally post
+     * @param address   the address of the resource server
+     * @throws AceException if an error occurs retrieving the actual token or posting the token
+     */
+    private void postTokenIfNotPosted(String tokenHash, String address) throws AceException {
+<span class="nc" id="L907">        TokenInfo tokenInfo = validTokensMap.get(tokenHash);</span>
+<span class="nc" id="L908">        boolean isTokenPosted = tokenInfo.isPosted();</span>
+
+<span class="nc bnc" id="L910" title="All 2 branches missed.">        if (!isTokenPosted) {</span>
+            // post the token
+            Map&lt;Short, CBORObject&gt; map;
+            try {
+<span class="nc" id="L914">                map = Constants.getParams(</span>
+<span class="nc" id="L915">                        CBORObject.DecodeFromBytes(tokenInfo.getAsResponse().getPayload()));</span>
+<span class="nc" id="L916">            } catch (AceException e) {</span>
+<span class="nc" id="L917">                throw new AceException(&quot;Error retrieving the token from valid tokens: &quot; + e.getMessage());</span>
+<span class="nc" id="L918">            }</span>
+            try {
+<span class="nc" id="L920">                tokenInfo.setPosted(</span>
+<span class="nc" id="L921">                        postToken(address, tokenInfo.getAsResponse(), map));</span>
+<span class="nc" id="L922">            } catch (OSException e) {</span>
+<span class="nc" id="L923">                throw new AceException(&quot;Error posting the token: &quot; + e.getMessage());</span>
+<span class="nc" id="L924">            }</span>
+        }
+<span class="nc" id="L926">    }</span>
+
+    private void shutdown() {
+<span class="nc bnc" id="L929" title="All 2 branches missed.">        if (client4AS != null)</span>
+<span class="nc" id="L930">            client4AS.shutdown();</span>
+<span class="nc bnc" id="L931" title="All 2 branches missed.">        if (executorService != null)</span>
+<span class="nc" id="L932">            executorService.shutdown();</span>
+<span class="nc bnc" id="L933" title="All 2 branches missed.">        for (Timer timer : expTasks) {</span>
+<span class="nc" id="L934">            timer.cancel();</span>
+<span class="nc" id="L935">        }</span>
+<span class="nc" id="L936">    }</span>
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

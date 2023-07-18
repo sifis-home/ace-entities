@@ -1,0 +1,570 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>AceRS.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">coverage</a> &gt; <a href="../index.html" class="el_bundle">AceRS</a> &gt; <a href="index.source.html" class="el_package">eu.sifishome</a> &gt; <span class="el_source">AceRS.java</span></div><h1>AceRS.java</h1><pre class="source lang-java linenums">package eu.sifishome;
+
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.MessageTag;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapObserveRelation;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
+import org.eclipse.californium.oscore.OSException;
+import picocli.CommandLine;
+import picocli.CommandLine.*;
+import picocli.CommandLine.Model.CommandSpec;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.coap.TrlCoapHandler;
+import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.coap.client.TrlResponses;
+import se.sics.ace.coap.rs.CoapAuthzInfo;
+import se.sics.ace.coap.rs.CoapDeliverer;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
+import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.KissTime;
+import se.sics.ace.examples.KissValidator;
+import se.sics.ace.rs.AsRequestCreationHints;
+import se.sics.ace.rs.IntrospectionException;
+import se.sics.ace.rs.TokenRepository;
+
+import java.io.File;
+import java.io.IOException;
+import java.sql.Timestamp;
+import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+
+/**
+ * Resource Server to test with AceClient and AceAS
+ *
+ * @author Marco Rasori
+ */
+
+
+@Command(name = &quot;r-server&quot;,
+        mixinStandardHelpOptions = true,
+        version = &quot;1.0&quot;,
+        description = &quot;Runs an ACE Resource Server.&quot;)
+<span class="nc" id="L61">public class AceRS implements Callable&lt;Integer&gt; {</span>
+
+    private final static String DEFAULT_ASURI = &quot;localhost:&quot; + CoAP.DEFAULT_COAP_PORT;
+    private final static int DEFAULT_RS_PORT = 5685;
+
+    private final static String DEFAULT_AUD = &quot;rs1&quot;;
+
+    private final static String DEFAULT_SCOPE = &quot;r_temp r_helloWorld&quot;;
+    private final static int DEFAULT_POLLING_INTERVAL = 10;
+    private final static int DEFAULT_INTROSPECT_INTERVAL = 10;
+
+    private final static String DEFAULT_TRL_ADDR = &quot;/trl&quot;;
+    private final static String DEFAULT_SENDER_ID = &quot;0x11&quot;;
+    private final static String DEFAULT_TOKEN_PSK = &quot;RS1-AS-Default-PSK-for-tokens---&quot;; //32-byte long
+    private final static String DEFAULT_MASTER_SECRET = &quot;RS1-AS-MS-------&quot;; //16-byte long
+
+    @Spec
+    CommandSpec spec;
+
+    @Option(names = {&quot;-a&quot;, &quot;--asuri&quot;},
+            required = false,
+            defaultValue = DEFAULT_ASURI,
+            description = &quot;The URI of the Authorization Server.\n&quot; +
+                    &quot;Hostname and port MUST be specified.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String asUri;
+
+    @Option(names = {&quot;-l&quot;, &quot;--listeningport&quot;},
+            required = false,
+            defaultValue = &quot;&quot; + DEFAULT_RS_PORT,
+            description = &quot;The port on which the Resource Server is listening.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String rsPort;
+
+    @Option(names = {&quot;-u&quot;, &quot;--aud&quot;},
+            required = false,
+            defaultValue = DEFAULT_AUD,
+            description = &quot;The audience of this Resource Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String aud;
+
+    @Option(names = {&quot;-s&quot;, &quot;--scope&quot;},
+            required = false,
+            defaultValue = DEFAULT_SCOPE,
+            description = &quot;The scope accepted by this Resource Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String scope;
+
+    @Option(names = {&quot;-m&quot;, &quot;--mastersecret&quot;},
+            required = false,
+            defaultValue = DEFAULT_MASTER_SECRET,
+            description = &quot;The symmetric pre-shared key between the Resource &quot; +
+                    &quot;Server and the Authorization Server. It is the master &quot; +
+                    &quot;secret used for the OSCORE Security Context.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String key;
+
+    @Option(names = {&quot;-x&quot;, &quot;--senderid&quot;},
+            required = false,
+            defaultValue = DEFAULT_SENDER_ID,
+            description = &quot;The Sender ID in HEX used for &quot; +
+                    &quot;the OSCORE Security Context with the Authorization Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String senderId;
+
+    @Option(names = {&quot;-k&quot;, &quot;--key&quot;},
+            required = false,
+            defaultValue = DEFAULT_TOKEN_PSK,
+            description = &quot;The symmetric pre-shared key between the Resource &quot; +
+                    &quot;Server and the Authorization Server. It is used by the &quot; +
+                    &quot;Authorization Server to protect the tokens for this &quot; +
+                    &quot;Resource Server.\n&quot; +
+                    &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+    private String tokenKey;
+
+<span class="nc" id="L136">    static class IntrospectionArgs {</span>
+        @Option(names = {&quot;-i&quot;, &quot;--introspection&quot;},
+                required = true,
+                description = &quot;The Resource Server introspects the introspection endpoint at the AS.\n&quot;)
+        boolean introspect;
+
+        @Option(names = {&quot;-y&quot;, &quot;--introspectioninterval&quot;},
+                required = false,
+                defaultValue = &quot;&quot; + DEFAULT_INTROSPECT_INTERVAL,
+                description = &quot;The time interval (in seconds) between two introspection &quot; +
+                        &quot;requests to the introspection endpoint.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        int interval;
+    }
+
+<span class="nc" id="L151">    static class PollingArgs {</span>
+        @Option(names = {&quot;-p&quot;, &quot;--polling&quot;},
+                required = true,
+                description = &quot;The Resource Server polls the trl endpoint at the AS.\n&quot;)
+        boolean polling;
+
+        @Option(names = {&quot;-e&quot;, &quot;--interval&quot;},
+                required = false,
+                defaultValue = &quot;&quot; + DEFAULT_POLLING_INTERVAL,
+                description = &quot;The time interval (in seconds) between two polling &quot; +
+                        &quot;requests to the trl endpoint.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        int interval;
+    }
+
+<span class="nc" id="L166">    static class ObserveArgs {</span>
+        @Option(names = {&quot;-o&quot;, &quot;--observe&quot;},
+                required = true,
+                description = &quot;The Resource Server observes the trl endpoint at the AS.\n&quot;)
+        boolean observe;
+    }
+
+<span class="nc" id="L173">    static class TrlAddrArg {</span>
+        @Option(names = {&quot;-t&quot;, &quot;--trladdress&quot;},
+                required = false,
+                defaultValue = DEFAULT_TRL_ADDR,
+                description = &quot;The address of the trl endpoint, e.g., '/trl'.\n&quot; +
+                        &quot;If query parameters are specified, e.g., '/trl?pmax=10&amp;diff=3', &quot; +
+                        &quot;the mode is automatically assumed to be 'diff-query'.\n&quot; +
+                        &quot;If no query parameters are specified, the mode is assumed to &quot; +
+                        &quot;be 'full query'.\n&quot; +
+                        &quot;(default: ${DEFAULT-VALUE})\n&quot;)
+        String trlAddress;
+    }
+
+<span class="nc" id="L186">    static class NotificationArgs {</span>
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        AceRS.PollingArgs pollingArgs;
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        AceRS.ObserveArgs observeArgs;
+    }
+
+<span class="nc" id="L193">    static class TrlArgs {</span>
+        @ArgGroup(exclusive = true, multiplicity = &quot;1&quot;)
+        AceRS.NotificationArgs notification;
+        @ArgGroup(exclusive = false)
+        AceRS.TrlAddrArg trlAddrArg;
+    }
+
+<span class="nc" id="L200">    static class Args {</span>
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        AceRS.TrlArgs trlArgs;
+        @ArgGroup(exclusive = false, multiplicity = &quot;1&quot;)
+        AceRS.IntrospectionArgs IntrospectionArgs;
+    }
+
+    @ArgGroup(exclusive = true)
+    AceRS.Args args;
+
+<span class="nc" id="L210">    private static OscoreAuthzInfo ai = null;</span>
+<span class="nc" id="L211">    private static CoapServer rs = null;</span>
+
+    // Symmetric key shared between AS and RS. Used to protect the tokens issued by the AS.
+    private static byte[] key256Rs;
+
+    private static CwtCryptoCtx cwtCryptoCtx;
+    private static byte[] key128;
+
+    private static OSCoreCtx ctx;
+    private static OSCoreCtxDB ctxDB;
+
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+
+<span class="nc" id="L224">    static File writeDir = new File(Utils.getResourcePath(AceRS.class));</span>
+<span class="nc" id="L225">    static String tokenFile = writeDir.getAbsolutePath() + File.separator + &quot;tokens.json&quot;;</span>
+<span class="nc" id="L226">    static String tokenHashesFile = writeDir.getAbsolutePath() + File.separator + &quot;tokenhashes.json&quot;;</span>
+
+<span class="nc" id="L228">    static String asName = &quot;AS&quot;;</span>
+    private static int rsCoapPort;
+
+<span class="nc" id="L231">    static Map&lt;String, Map&lt;String, Set&lt;Short&gt;&gt;&gt; myScopes = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L232">    private static OscoreIntrospection introspection = null;</span>
+
+<span class="nc" id="L234">    private static final byte[] idContext = new byte[]{0x44};</span>
+    private byte[] sId;
+
+<span class="nc" id="L237">    private boolean isPolling = false;</span>
+<span class="nc" id="L238">    private boolean isObserve = false;</span>
+
+<span class="nc" id="L240">    private boolean isIntrospect = false;</span>
+
+    private int pollingInterval;
+
+    private int introspectInterval;
+
+    private String trlAddr;
+
+<span class="nc" id="L248">    private final List&lt;String&gt; syncCtisList = new ArrayList&lt;&gt;();</span>
+
+<span class="nc" id="L250">    private final Map&lt;String, ScheduledExecutorService&gt; introspectorMap = new HashMap&lt;&gt;();</span>
+
+
+    //--- MAIN
+    public static void main(String[] args) {
+
+<span class="nc" id="L256">        int exitCode = new CommandLine(new AceRS()).execute(args);</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        if (exitCode != 0) {</span>
+<span class="nc" id="L258">            rs.stop();</span>
+<span class="nc" id="L259">            System.exit(exitCode);</span>
+        }
+<span class="nc" id="L261">    }</span>
+
+
+    @Override
+    public Integer call() throws Exception {
+
+<span class="nc" id="L267">        parseInputs();</span>
+
+<span class="nc" id="L269">        parseScope(scope);</span>
+<span class="nc" id="L270">        setUpCwtCryptoCtx();</span>
+<span class="nc" id="L271">        setUpServer();</span>
+
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        if (!Utils.isServerReachable(&quot;Authorization Server&quot;, asUri, 2000L, Integer.MAX_VALUE)) {</span>
+<span class="nc" id="L274">            return -1;</span>
+        }
+
+<span class="nc" id="L277">        rs.start();</span>
+<span class="nc" id="L278">        System.out.println(&quot;Server starting&quot;);</span>
+
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        if (isObserve) {</span>
+<span class="nc" id="L281">            CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);</span>
+            // 1. Make Observe request to the /trl endpoint
+<span class="nc" id="L283">            TrlCoapHandler handler = new TrlCoapHandler(</span>
+<span class="nc" id="L284">                    TokenRepository.getInstance().getTrlManager());</span>
+<span class="nc" id="L285">            CoapObserveRelation relation = OSCOREProfileRequests.</span>
+<span class="nc" id="L286">                    makeObserveRequest(client4AS, asUri + trlAddr, handler);</span>
+        }
+
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        if (isPolling) {</span>
+<span class="nc" id="L290">            CoapClient client4AS = OSCOREProfileRequests.buildClient(asUri, ctx, ctxDB);</span>
+            // 1. Make poll request to the /trl endpoint
+            ScheduledExecutorService executorService = Executors
+<span class="nc" id="L293">                    .newSingleThreadScheduledExecutor();</span>
+<span class="nc" id="L294">            executorService.scheduleAtFixedRate(</span>
+                    new Poller(client4AS, asUri + trlAddr),
+                    pollingInterval, pollingInterval, TimeUnit.SECONDS);
+        }
+
+<span class="nc" id="L299">        Set&lt;String&gt; validTokens = TokenRepository.getInstance().getCtis();</span>
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        for (String cti : validTokens) {</span>
+<span class="nc" id="L301">            startIntrospector(cti);</span>
+<span class="nc" id="L302">        }</span>
+
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        while (isIntrospect) {</span>
+<span class="nc" id="L305">            synchronized (syncCtisList) {</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">                while (syncCtisList.isEmpty()) {</span>
+<span class="nc" id="L307">                    syncCtisList.wait();</span>
+                }
+<span class="nc" id="L309">                ListIterator&lt;String&gt; iter = syncCtisList.listIterator();</span>
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                while (iter.hasNext()) {</span>
+<span class="nc" id="L311">                    startIntrospector(iter.next());</span>
+<span class="nc" id="L312">                    iter.remove();</span>
+                }
+<span class="nc" id="L314">                syncCtisList.notifyAll();</span>
+<span class="nc" id="L315">            }</span>
+        }
+
+<span class="nc" id="L318">        return 0;</span>
+    }
+
+    private void startIntrospector(String cti) {
+        ScheduledExecutorService executorService = Executors
+<span class="nc" id="L323">                .newSingleThreadScheduledExecutor();</span>
+<span class="nc" id="L324">        executorService.scheduleAtFixedRate(</span>
+                new Introspector(cti),
+                introspectInterval, introspectInterval, TimeUnit.SECONDS);
+<span class="nc" id="L327">        introspectorMap.put(cti, executorService);</span>
+<span class="nc" id="L328">    }</span>
+
+    class Introspector implements Runnable {
+
+        String cti;
+
+<span class="nc" id="L334">        public Introspector(String cti) {</span>
+<span class="nc" id="L335">            this.cti = cti;</span>
+<span class="nc" id="L336">        }</span>
+
+        @Override
+        public void run() {
+            //System.out.println(&quot;New Introspect thread (&quot; +
+            //        Thread.currentThread().getName() + &quot;) for token &quot; + cti);
+            try {
+<span class="nc" id="L343">                CBORObject cticb = CBORObject.FromObject(Base64.getDecoder().decode(cti));</span>
+<span class="nc" id="L344">                Map&lt;Short, CBORObject&gt; map = introspection.getParams(cticb.GetByteString());</span>
+
+<span class="nc" id="L346">                CBORObject active = map.get(Constants.ACTIVE);</span>
+<span class="nc bnc" id="L347" title="All 4 branches missed.">                if (active != null &amp;&amp; active.isFalse()) {</span>
+<span class="nc" id="L348">                    System.out.println(&quot;Introspection result: Token is not valid.&quot;);</span>
+<span class="nc" id="L349">                    TokenRepository.getInstance().removeToken(cti);</span>
+<span class="nc" id="L350">                    System.out.println(&quot;Access Token removed.&quot;);</span>
+
+<span class="nc" id="L352">                    introspectorMap.get(cti).shutdown();</span>
+<span class="nc" id="L353">                    introspectorMap.remove(cti);</span>
+                } else {
+<span class="nc" id="L355">                    System.out.println(&quot;Introspection result: Token is valid.&quot;);</span>
+                }
+<span class="nc" id="L357">            } catch (AceException | IntrospectionException e) {</span>
+<span class="nc" id="L358">                e.printStackTrace();</span>
+<span class="nc" id="L359">            }</span>
+
+<span class="nc" id="L361">        }</span>
+    }
+
+
+    class Poller implements Runnable {
+
+        CoapClient client4AS;
+        String trlUri;
+
+<span class="nc" id="L370">        public Poller(CoapClient client4AS, String trlUri) {</span>
+<span class="nc" id="L371">            this.client4AS = client4AS;</span>
+<span class="nc" id="L372">            this.trlUri = trlUri;</span>
+<span class="nc" id="L373">        }</span>
+
+        @Override
+        public void run() {
+<span class="nc" id="L377">            CoapResponse responseTrl = null;</span>
+            try {
+<span class="nc" id="L379">                System.out.println(&quot;Now polling:&quot; + new Timestamp(System.currentTimeMillis()));</span>
+<span class="nc" id="L380">                responseTrl = OSCOREProfileRequests.makePollRequest(client4AS, trlUri);</span>
+<span class="nc" id="L381">            } catch (AceException e) {</span>
+<span class="nc" id="L382">                e.printStackTrace();</span>
+<span class="nc" id="L383">            }</span>
+
+            CBORObject payload;
+            try {
+<span class="nc" id="L387">                payload = TrlResponses.checkAndGetPayload(responseTrl);</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                if (payload.getType() == CBORType.Map &amp;&amp;</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">                        Constants.getParams(payload).containsKey(Constants.TRL_ERROR)) {</span>
+<span class="nc" id="L390">                    System.out.println(&quot;Trl response contains an error&quot;);</span>
+<span class="nc" id="L391">                    return;</span>
+                }
+<span class="nc" id="L393">            } catch (AceException e) {</span>
+<span class="nc" id="L394">                e.printStackTrace();</span>
+<span class="nc" id="L395">            }</span>
+
+<span class="nc" id="L397">            TokenRepository.TrlManager trl = TokenRepository.getInstance().getTrlManager();</span>
+            try {
+<span class="nc" id="L399">                trl.updateLocalTrl(CBORObject.DecodeFromBytes(responseTrl.getPayload()));</span>
+<span class="nc" id="L400">            } catch (AceException e) {</span>
+<span class="nc" id="L401">                e.printStackTrace();</span>
+<span class="nc" id="L402">            }</span>
+<span class="nc" id="L403">        }</span>
+    }
+
+
+    private void setUpServer()
+            throws AceException, IOException, CoseException, OSException,
+            ClassNotFoundException, InstantiationException, IllegalAccessException {
+
+<span class="nc" id="L411">        KissValidator valid = new KissValidator(Collections.singleton(aud), myScopes);</span>
+<span class="nc" id="L412">        deleteOldTokenFiles();</span>
+
+<span class="nc" id="L414">        ctxDB = OscoreCtxDbSingleton.getInstance();</span>
+
+<span class="nc" id="L416">        ctx = new OSCoreCtx(key128, true, null,</span>
+                sId, // RS identity
+                new byte[]{0x33},  // AS identity
+                null, null, null, idContext, MAX_UNFRAGMENTED_SIZE);
+<span class="nc bnc" id="L420" title="All 2 branches missed.">        if (isIntrospect) {</span>
+<span class="nc" id="L421">            introspection =</span>
+                    new OscoreIntrospection(ctx, asUri + &quot;/introspect&quot;, ctxDB);
+        }
+
+        //Set up the inner Authz-Info library
+<span class="nc" id="L426">        ai = new OscoreAuthzInfo(Collections.singletonList(asName),</span>
+                new KissTime(), introspection, aud, valid, cwtCryptoCtx,
+                tokenFile, tokenHashesFile, valid, false, 86400000L, syncCtisList);
+
+<span class="nc" id="L430">        rs = new CoapServer();</span>
+
+<span class="nc" id="L432">        List&lt;String&gt; resources = getClassResourcesNames(scope);</span>
+<span class="nc bnc" id="L433" title="All 2 branches missed.">        for (String res : resources) {</span>
+<span class="nc" id="L434">            rs.add((Resource) Class.forName(res).newInstance());</span>
+<span class="nc" id="L435">        }</span>
+
+<span class="nc" id="L437">        rs.add(new CoapAuthzInfo(ai));</span>
+
+<span class="nc" id="L439">        CoapEndpoint cep = new CoapEndpoint.Builder()</span>
+<span class="nc" id="L440">                .setCoapStackFactory(new OSCoreCoapStackFactory())</span>
+<span class="nc" id="L441">                .setPort(rsCoapPort)</span>
+<span class="nc" id="L442">                .setCustomCoapStackArgument(ctxDB)</span>
+<span class="nc" id="L443">                .build();</span>
+<span class="nc" id="L444">        rs.addEndpoint(cep);</span>
+
+<span class="nc" id="L446">        AsRequestCreationHints archm = new AsRequestCreationHints(</span>
+                asUri, null, false, false); //todo should include /token?
+<span class="nc" id="L448">        CoapDeliverer dpd = new CoapDeliverer(rs.getRoot(), null, archm, cep);</span>
+<span class="nc" id="L449">        rs.setMessageDeliverer(dpd);</span>
+<span class="nc" id="L450">    }</span>
+
+    /**
+     * Stops the server
+     *
+     * @throws IOException
+     * @throws AceException
+     */
+    public void stop() throws IOException, AceException {
+<span class="nc" id="L459">        rs.stop();</span>
+<span class="nc" id="L460">        ai.close();</span>
+<span class="nc" id="L461">        deleteOldTokenFiles();</span>
+<span class="nc" id="L462">        System.out.println(&quot;Server stopped&quot;);</span>
+<span class="nc" id="L463">    }</span>
+
+
+    private void deleteOldTokenFiles() throws IOException {
+        //Delete lingering old files
+<span class="nc" id="L468">        File tFile = new File(tokenFile);</span>
+<span class="nc bnc" id="L469" title="All 4 branches missed.">        if (!tFile.delete() &amp;&amp; tFile.exists()) {</span>
+<span class="nc" id="L470">            throw new IOException(&quot;Failed to delete &quot; + tFile);</span>
+        }
+<span class="nc" id="L472">        File thFile = new File(tokenHashesFile);</span>
+<span class="nc bnc" id="L473" title="All 4 branches missed.">        if (!thFile.delete() &amp;&amp; thFile.exists()) {</span>
+<span class="nc" id="L474">            throw new IOException(&quot;Failed to delete &quot; + thFile);</span>
+        }
+<span class="nc" id="L476">    }</span>
+
+
+    private void setUpCwtCryptoCtx() {
+        //Set up COSE parameters
+<span class="nc" id="L481">        COSEparams coseP = new COSEparams(MessageTag.Encrypt0,</span>
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+
+<span class="nc" id="L484">        cwtCryptoCtx = CwtCryptoCtx.encrypt0(key256Rs, coseP.getAlg().AsCBOR());</span>
+<span class="nc" id="L485">    }</span>
+
+
+    private List&lt;String&gt; getClassResourcesNames(String scope) {
+<span class="nc" id="L489">        List&lt;String&gt; resources = new ArrayList&lt;&gt;(Arrays.asList(this.scope.split(&quot; &quot;)));</span>
+<span class="nc" id="L490">        resources.replaceAll(s -&gt; s.substring(s.indexOf(&quot;_&quot;) + 1));</span>
+<span class="nc" id="L491">        resources.replaceAll(s -&gt; s.substring(0, 1).toUpperCase() + s.substring(1));</span>
+<span class="nc" id="L492">        resources.replaceAll(s -&gt; &quot;eu.sifishome.resources.&quot; + s + &quot;Resource&quot;);</span>
+<span class="nc" id="L493">        return resources;</span>
+    }
+
+
+    private void parseScope(String scope) throws AceException {
+
+<span class="nc" id="L499">        List&lt;String&gt; scopes = new ArrayList&lt;&gt;(Arrays.asList(scope.split(&quot; &quot;)));</span>
+
+<span class="nc bnc" id="L501" title="All 2 branches missed.">        for (String s : scopes) {</span>
+<span class="nc bnc" id="L502" title="All 4 branches missed.">            if (s.chars().filter(ch -&gt; ch == '_').count() != 1) {</span>
+<span class="nc" id="L503">                throw new AceException(&quot;Not supported scope: &quot; + s);</span>
+            }
+<span class="nc" id="L505">            Set&lt;Short&gt; actions = new HashSet&lt;&gt;();</span>
+<span class="nc bnc" id="L506" title="All 6 branches missed.">            if (s.startsWith(&quot;r_&quot;) || s.startsWith(&quot;rw_&quot;) || s.startsWith(&quot;wr_&quot;)) {</span>
+<span class="nc" id="L507">                actions.add(Constants.GET);</span>
+            }
+<span class="nc bnc" id="L509" title="All 6 branches missed.">            if (s.startsWith(&quot;w_&quot;) || s.startsWith(&quot;rw_&quot;) || s.startsWith(&quot;wr_&quot;)) {</span>
+<span class="nc" id="L510">                actions.add(Constants.POST);</span>
+            }
+
+<span class="nc" id="L513">            Map&lt;String, Set&lt;Short&gt;&gt; myResource = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L514">            myResource.put(s.substring(s.indexOf(&quot;_&quot;) + 1), actions);</span>
+<span class="nc" id="L515">            myScopes.put(s, myResource);</span>
+<span class="nc" id="L516">        }</span>
+<span class="nc" id="L517">    }</span>
+
+
+    private void parseInputs() throws ParameterException {
+
+        // check asUri and prepend the protocol if needed
+<span class="nc" id="L523">        asUri = Utils.validateUri(asUri, spec);</span>
+
+        // check that rs port number is in range
+<span class="nc" id="L526">        rsCoapPort = Utils.validatePort(rsPort, spec);</span>
+
+        // convert senderId input from hex string to byte array
+<span class="nc" id="L529">        sId = Utils.hexStringToByteArray(senderId, spec);</span>
+
+        // convert the OSCORE master secret from string to byte array
+<span class="nc" id="L532">        key128 = key.getBytes(Constants.charset);</span>
+
+        // convert the PSK for tokens from string to byte array
+<span class="nc" id="L535">        key256Rs = tokenKey.getBytes(Constants.charset);</span>
+
+        // parse revoked tokens notification type
+        try {
+<span class="nc" id="L539">            isObserve = this.args.trlArgs.notification.observeArgs.observe;</span>
+<span class="nc" id="L540">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L541">            isObserve = false;</span>
+<span class="nc" id="L542">        }</span>
+        try {
+<span class="nc" id="L544">            isPolling = this.args.trlArgs.notification.pollingArgs.polling;</span>
+<span class="nc" id="L545">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L546">            isPolling = false;</span>
+<span class="nc" id="L547">        }</span>
+        try {
+<span class="nc" id="L549">            pollingInterval = this.args.trlArgs.notification.pollingArgs.interval;</span>
+<span class="nc" id="L550">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L551">            pollingInterval = DEFAULT_POLLING_INTERVAL;</span>
+<span class="nc" id="L552">        }</span>
+        try {
+<span class="nc" id="L554">            trlAddr = this.args.trlArgs.trlAddrArg.trlAddress;</span>
+<span class="nc" id="L555">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L556">            trlAddr = DEFAULT_TRL_ADDR;</span>
+<span class="nc" id="L557">        }</span>
+        try {
+<span class="nc" id="L559">            isIntrospect = this.args.IntrospectionArgs.introspect;</span>
+<span class="nc" id="L560">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L561">            isIntrospect = false;</span>
+<span class="nc" id="L562">        }</span>
+        try {
+<span class="nc" id="L564">            introspectInterval = this.args.IntrospectionArgs.interval;</span>
+<span class="nc" id="L565">        } catch (NullPointerException e) {</span>
+<span class="nc" id="L566">            introspectInterval = DEFAULT_INTROSPECT_INTERVAL;</span>
+<span class="nc" id="L567">        }</span>
+<span class="nc" id="L568">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>

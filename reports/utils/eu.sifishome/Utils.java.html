@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../../jacoco-resources/report.gif" type="image/gif"/><title>Utils.java</title><link rel="stylesheet" href="../../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../../index.html" class="el_report">coverage</a> &gt; <a href="../index.html" class="el_bundle">utils</a> &gt; <a href="index.source.html" class="el_package">eu.sifishome</a> &gt; <span class="el_source">Utils.java</span></div><h1>Utils.java</h1><pre class="source lang-java linenums">package eu.sifishome;
+
+import org.eclipse.californium.core.CoapClient;
+import picocli.CommandLine;
+import se.sics.ace.AceException;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.stream.Collectors;
+
+
+<span class="nc" id="L18">public class Utils {</span>
+
+    public static String validateUri(String srvUri, CommandLine.Model.CommandSpec spec)
+            throws CommandLine.ParameterException {
+
+        try {
+<span class="nc bnc" id="L24" title="All 2 branches missed.">            if (!srvUri.contains(&quot;://&quot;)) {</span>
+<span class="nc" id="L25">                srvUri = &quot;coap://&quot; + srvUri;</span>
+            }
+<span class="nc" id="L27">            URI uri = new URI(srvUri);</span>
+<span class="nc bnc" id="L28" title="All 4 branches missed.">            if (uri.getHost() == null || uri.getPort() == -1) {</span>
+<span class="nc" id="L29">                throw new URISyntaxException(uri.toString(),</span>
+                        &quot;URI must have host and port parts&quot;);
+            }
+<span class="nc" id="L32">            return uri.toString();</span>
+<span class="nc" id="L33">        } catch (URISyntaxException ex) {</span>
+            // validation failed
+<span class="nc" id="L35">            throw new CommandLine.ParameterException(spec.commandLine(),</span>
+<span class="nc" id="L36">                    String.format(&quot;Server address not valid:\n &gt; '%s'\n&quot;, srvUri));</span>
+        }
+    }
+
+    public static int validatePort(String portStr, CommandLine.Model.CommandSpec spec)
+            throws CommandLine.ParameterException {
+<span class="nc" id="L42">        int port = Integer.parseInt(portStr);</span>
+<span class="nc bnc" id="L43" title="All 4 branches missed.">        if (port &lt; 1 || port &gt; 65535) {</span>
+<span class="nc" id="L44">            throw new CommandLine.ParameterException(spec.commandLine(),</span>
+<span class="nc" id="L45">                    String.format(&quot;Port number not valid:\n &gt; '%s'\n&quot;, port));</span>
+        }
+<span class="nc" id="L47">        return port;</span>
+    }
+
+    public static byte[] hexStringToByteArray(String str, CommandLine.Model.CommandSpec spec)
+            throws CommandLine.ParameterException {
+
+<span class="nc" id="L53">        String s = str.replace(&quot;0x&quot;, &quot;&quot;);</span>
+        try {
+<span class="nc" id="L55">            Integer.parseInt(s, 16);</span>
+<span class="nc" id="L56">        } catch (NumberFormatException nfe) {</span>
+<span class="nc" id="L57">            throw new CommandLine.ParameterException(spec.commandLine(),</span>
+<span class="nc" id="L58">                    String.format(&quot;Hexadecimal value is not valid:\n &gt; '%s'&quot;, str));</span>
+<span class="nc" id="L59">        }</span>
+
+<span class="nc" id="L61">        int len = s.length();</span>
+<span class="nc" id="L62">        byte[] data = new byte[len / 2];</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        for (int i = 0; i &lt; len; i += 2) {</span>
+<span class="nc" id="L64">            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) &lt;&lt; 4)</span>
+<span class="nc" id="L65">                    + Character.digit(s.charAt(i + 1), 16));</span>
+        }
+<span class="nc" id="L67">        return data;</span>
+    }
+
+    public static boolean createDir(File dir) throws AceException {
+<span class="nc bnc" id="L71" title="All 2 branches missed.">        if (dir.exists()) {</span>
+<span class="nc" id="L72">            Utils.deleteDir(dir);</span>
+        }
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (!dir.mkdir()) {</span>
+<span class="nc" id="L75">            throw new AceException(&quot;Unable to create policies directory&quot;);</span>
+        }
+<span class="nc" id="L77">        return true;</span>
+    }
+
+    public static boolean deleteDir(File directoryToBeDeleted) {
+<span class="nc" id="L81">        File[] allContents = directoryToBeDeleted.listFiles();</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (allContents != null) {</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            for (File file : allContents) {</span>
+<span class="nc" id="L84">                deleteDir(file);</span>
+            }
+        }
+<span class="nc" id="L87">        return directoryToBeDeleted.delete();</span>
+    }
+
+    public static String getResourcePath(Class&lt;?&gt; clazz) {
+
+<span class="nc" id="L92">        URL input = clazz.getProtectionDomain().getCodeSource().getLocation();</span>
+
+        try {
+<span class="nc" id="L95">            File myfile = new File(input.toURI());</span>
+<span class="nc" id="L96">            File dir = myfile.getParentFile(); // strip off .jar file</span>
+<span class="nc" id="L97">            return dir.getAbsolutePath();</span>
+<span class="nc" id="L98">        } catch (URISyntaxException e) {</span>
+<span class="nc" id="L99">            throw new RuntimeException(e);</span>
+        }
+    }
+
+    public static String readContent(InputStream input) {
+<span class="nc" id="L104">        return new BufferedReader(</span>
+                new InputStreamReader(input, StandardCharsets.UTF_8))
+<span class="nc" id="L106">                .lines()</span>
+<span class="nc" id="L107">                .collect(Collectors.joining(&quot;\n&quot;));</span>
+    }
+
+    public static InputStream accessFile(Class&lt;?&gt; clazz, String fileName) {
+
+        // this is the path within the jar file
+<span class="nc" id="L113">        InputStream input = clazz.getResourceAsStream(</span>
+                File.separator + &quot;resources&quot; + File.separator + fileName);
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (input == null) {</span>
+            // this is how we load file within editor
+<span class="nc" id="L117">            input = clazz.getClassLoader().getResourceAsStream(fileName);</span>
+        }
+
+<span class="nc" id="L120">        return input;</span>
+    }
+
+    /**
+     * Determine if a CoAP server is reachable by pinging it.
+     *
+     * @param entity   the (common) name of the entity to ping
+     * @param srvUri   the URI of the server to ping
+     * @param timeout  the time (in milliseconds) after which the ping gives up
+     * @param attempts the number of failing pings before returning
+     * @return true if the server is reachable (ping was successful), false otherwise
+     */
+    public static boolean isServerReachable(String entity, String srvUri, Long timeout, int attempts) {
+
+<span class="nc" id="L134">        CoapClient checker = new CoapClient(srvUri);</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        for (int i = 0; i &lt; attempts; i++) {</span>
+<span class="nc" id="L137">            System.out.println(&quot;Attempt to reach &quot; + entity + &quot; at: &quot; + srvUri + &quot; ...&quot;);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (checker.ping(timeout)) {</span>
+<span class="nc" id="L139">                System.out.println(entity + &quot; at &quot; + srvUri + &quot; is available.&quot;);</span>
+<span class="nc" id="L140">                checker.shutdown();</span>
+<span class="nc" id="L141">                return true;</span>
+            }
+        }
+<span class="nc" id="L144">        System.out.println(&quot;Unable to reach &quot;+ entity + &quot; at &quot; + srvUri + &quot;.&quot;);</span>
+<span class="nc" id="L145">        checker.shutdown();</span>
+<span class="nc" id="L146">        return false;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.10.202304240956</span></div></body></html>
