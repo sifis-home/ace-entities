@@ -1,19 +1,20 @@
 package eu.sifishome;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+
+import org.junit.Before;
+import org.junit.Test;
 import se.sics.ace.AceException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 public class TestDBHelper {
 
-    @BeforeEach
+    @Before
     public void cleanDBHelper() {
         DBHelper.restoreDefaultClassFields();
     }

@@ -4,8 +4,10 @@ import org.junit.Before;
 import org.junit.Test;
 import picocli.CommandLine;
 
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,12 +16,14 @@ import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assume.assumeTrue;
 
 public class TestASInputs {
 
     String user;
     String password;
     String dbUri;
+
     @Before
     public void loadDbCredentials() throws IOException {
         ArrayList<String> credentials = new ArrayList<>();
@@ -85,15 +89,15 @@ public class TestASInputs {
         AceAS.stop();
     }
 
+    // if the dht cannot be reached, this test is skipped
     @Test
-    public void testSuccessWebSocket() {
+    public void testSuccessWebSocket() throws Exception {
         String dhtAddr = "ws://localhost:3000/ws";
-        if (Utils.isDhtReachable(dhtAddr, 2000, 2)) {
-            int exitCode = new CommandLine(new AceAS()).execute("-d", dbUri, "-D", "-w", dhtAddr);
-            assertNotEquals(0, exitCode);
-        } else {
-            System.out.println("Test skipped since the DHT is not reachable");
-        }
+        assumeTrue(Utils.isDhtReachable(dhtAddr, 2000, 2));
+
+        int exitCode = new CommandLine(new AceAS()).execute("-d", dbUri, "-D", "-w", dhtAddr);
+        assertEquals(0, exitCode);
+        AceAS.stop();
     }
 
     @Test

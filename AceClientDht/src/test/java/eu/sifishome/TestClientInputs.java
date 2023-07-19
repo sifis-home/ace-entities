@@ -9,7 +9,7 @@ import static org.junit.Assert.assertEquals;
 public class TestClientInputs {
 
     @Test
-    public void testSuccessStartClient() throws Exception {
+    public void testSuccessStartClient() {
 
         // this is necessary for the Client, otherwise it waits
         // until it finds that the AS is reachable.
@@ -23,7 +23,7 @@ public class TestClientInputs {
     }
 
     @Test
-    public void testSuccessStartClientWithObserve() throws Exception {
+    public void testSuccessStartClientWithObserve() {
 
         // this is necessary for the Client, otherwise it waits
         // until it finds that the AS is reachable.
@@ -37,7 +37,7 @@ public class TestClientInputs {
     }
 
     @Test
-    public void testSuccessStartClientWithPolling() throws Exception {
+    public void testSuccessStartClientWithPolling() {
 
         // this is necessary for the Client, otherwise it waits
         // until it finds that the AS is reachable.

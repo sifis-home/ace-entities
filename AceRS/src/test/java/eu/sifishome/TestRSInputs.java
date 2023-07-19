@@ -1,14 +1,11 @@
 package eu.sifishome;
 
-import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapServer;
 import org.junit.Test;
 import picocli.CommandLine;
-import se.sics.ace.AceException;
 
-import static java.lang.Thread.sleep;
-import static org.junit.Assert.*;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 public class TestRSInputs {
 
