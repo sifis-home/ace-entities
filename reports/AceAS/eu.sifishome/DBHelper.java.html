@@ -34,16 +34,16 @@ import java.sql.SQLException;
 <span class="fc" id="L34">    private static String dbUrl = null;</span>
 
     protected static void restoreDefaultClassFields() {
-<span class="nc" id="L37">        dbAdapter = new MySQLDBAdapter();</span>
+<span class="fc" id="L37">        dbAdapter = new MySQLDBAdapter();</span>
 
-<span class="nc" id="L39">        testUsername = &quot;testuser&quot;;</span>
-<span class="nc" id="L40">        testPassword = &quot;testpwd&quot;;</span>
-<span class="nc" id="L41">        testDBName = &quot;testdb&quot;;</span>
+<span class="fc" id="L39">        testUsername = &quot;testuser&quot;;</span>
+<span class="fc" id="L40">        testPassword = &quot;testpwd&quot;;</span>
+<span class="fc" id="L41">        testDBName = &quot;testdb&quot;;</span>
 
-<span class="nc" id="L43">        dbAdminUser = null;</span>
-<span class="nc" id="L44">        dbAdminPwd = null;</span>
-<span class="nc" id="L45">        dbUrl = null;</span>
-<span class="nc" id="L46">    }</span>
+<span class="fc" id="L43">        dbAdminUser = null;</span>
+<span class="fc" id="L44">        dbAdminPwd = null;</span>
+<span class="fc" id="L45">        dbUrl = null;</span>
+<span class="fc" id="L46">    }</span>
 
     /**
      * Sets up the DB using the current default adapter.
@@ -155,9 +155,9 @@ import java.sql.SQLException;
      * @throws URISyntaxException If the given string violates RFC 2396
      */
     private static void parseDbUrl(String url) throws URISyntaxException, AceException {
-<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        if (url == null) {</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (url == null) {</span>
             // using default db Url
-<span class="nc" id="L160">            return;</span>
+<span class="fc" id="L160">            return;</span>
         }
 <span class="fc bfc" id="L162" title="All 2 branches covered.">        if (!url.startsWith(&quot;jdbc:mysql://&quot;)) {</span>
 <span class="fc" id="L163">            throw new IllegalArgumentException(&quot;Wrong database URL. The URL must start with \&quot;jdbc:mysql://\&quot;&quot;);</span>

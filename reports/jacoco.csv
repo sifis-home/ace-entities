@@ -1,6 +1,6 @@
 GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
 coverage/AceAS,eu.sifishome,AceAS.Opt,0,3,0,0,0,1,0,1,0,1
-coverage/AceAS,eu.sifishome,DBHelper,58,248,7,25,17,67,10,16,3,7
+coverage/AceAS,eu.sifishome,DBHelper,40,266,6,26,8,76,8,18,2,8
 coverage/AceAS,eu.sifishome,AceAS.Peer,0,3,0,0,0,1,0,1,0,1
 coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},0,10,0,0,0,3,0,1,0,1
 coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},0,10,0,0,0,3,0,1,0,1
