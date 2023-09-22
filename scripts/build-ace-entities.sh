@@ -15,6 +15,9 @@ then
   sudo systemctl start mysql.service
   echo "root" > AceAS/db.pwd # Root username
   echo "root" >> AceAS/db.pwd # Root pw
+  ls AceAS
+  cat AceAS/db.pwd
+  echo " "
 fi
 
 # Run mvn on ace-entities
