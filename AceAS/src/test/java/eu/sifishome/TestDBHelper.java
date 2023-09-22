@@ -8,6 +8,10 @@ import se.sics.ace.AceException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
@@ -15,8 +19,13 @@ import static org.junit.Assert.assertThrows;
 public class TestDBHelper {
 
     @Before
-    public void cleanDBHelper() {
+    public void cleanDBHelper() throws IOException {
         DBHelper.restoreDefaultClassFields();
+
+        // copy the db.pwd file in the location expected by the DBHelper
+        Path copied = Paths.get("target/db.pwd");
+        Path originalPath = Paths.get("db.pwd");
+        Files.copy(originalPath, copied, StandardCopyOption.REPLACE_EXISTING);
     }
 
     /**
