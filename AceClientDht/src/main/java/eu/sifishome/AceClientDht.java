@@ -451,7 +451,7 @@ public class AceClientDht implements Callable<Integer> {
                 //       If it works, set timeToExpire = EXP - currentTime;
                 //       If it fails, extract EXI and set timeToExpire = EXI;
                 //       Post the token.
-                long timeToExpire = 40000L;
+                long timeToExpire = 86400000L;
 
                 Timer timer = new Timer();
                 timer.schedule(new ExpirationTask(tokenHash, validTokensMap), timeToExpire);
