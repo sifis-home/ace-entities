@@ -451,7 +451,7 @@ import java.util.stream.Stream;
                 //       If it works, set timeToExpire = EXP - currentTime;
                 //       If it fails, extract EXI and set timeToExpire = EXI;
                 //       Post the token.
-<span class="nc" id="L454">                long timeToExpire = 40000L;</span>
+<span class="nc" id="L454">                long timeToExpire = 86400000L;</span>
 
 <span class="nc" id="L456">                Timer timer = new Timer();</span>
 <span class="nc" id="L457">                timer.schedule(new ExpirationTask(tokenHash, validTokensMap), timeToExpire);</span>

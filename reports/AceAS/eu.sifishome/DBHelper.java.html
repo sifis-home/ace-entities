@@ -55,9 +55,9 @@ import java.sql.SQLException;
         // First load the DB admin username and password from an external file.
         try {
 <span class="fc" id="L57">            loadAdminLoginInformation();</span>
-<span class="fc" id="L58">        } catch (IOException e) {</span>
+<span class="nc" id="L58">        } catch (IOException e) {</span>
             // if the dbUrl is not empty, later we try to load admin username and password from the URL
-<span class="pc bpc" id="L60" title="1 of 2 branches missed.">            if (dbUrl == null) {</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            if (dbUrl == null) {</span>
 <span class="nc" id="L61">                throw new IOException(e.getMessage());</span>
             }
 <span class="fc" id="L63">        }</span>

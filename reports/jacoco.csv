@@ -1,6 +1,6 @@
 GROUP,PACKAGE,CLASS,INSTRUCTION_MISSED,INSTRUCTION_COVERED,BRANCH_MISSED,BRANCH_COVERED,LINE_MISSED,LINE_COVERED,COMPLEXITY_MISSED,COMPLEXITY_COVERED,METHOD_MISSED,METHOD_COVERED
 coverage/AceAS,eu.sifishome,AceAS.Opt,0,3,0,0,0,1,0,1,0,1
-coverage/AceAS,eu.sifishome,DBHelper,40,266,6,26,8,76,8,18,2,8
+coverage/AceAS,eu.sifishome,DBHelper,43,263,7,25,10,74,8,18,2,8
 coverage/AceAS,eu.sifishome,AceAS.Peer,0,3,0,0,0,1,0,1,0,1
 coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},0,10,0,0,0,3,0,1,0,1
 coverage/AceAS,eu.sifishome,AceAS.new ArrayList() {...},0,10,0,0,0,3,0,1,0,1
@@ -27,15 +27,15 @@ coverage/utils,eu.sifishome.json.incoming,Volatile,6,0,0,0,2,0,2,0,2,0
 coverage/AceRS,eu.sifishome,AceRS.PollingArgs,0,3,0,0,0,1,0,1,0,1
 coverage/AceRS,eu.sifishome,AceRS.TrlArgs,0,3,0,0,0,1,0,1,0,1
 coverage/AceRS,eu.sifishome,AceRS.Introspector,65,0,4,0,17,0,4,0,2,0
-coverage/AceRS,eu.sifishome,AceRS.NotificationArgs,0,3,0,0,0,1,0,1,0,1
 coverage/AceRS,eu.sifishome,AceRS.IntrospectionArgs,3,0,0,0,1,0,1,0,1,0
+coverage/AceRS,eu.sifishome,AceRS.NotificationArgs,0,3,0,0,0,1,0,1,0,1
 coverage/AceRS,eu.sifishome,AceRS.TrlAddrArg,3,0,0,0,1,0,1,0,1,0
 coverage/AceRS,eu.sifishome,AceRS,159,587,17,29,31,113,16,23,2,14
 coverage/AceRS,eu.sifishome,AceRS.Args,0,3,0,0,0,1,0,1,0,1
 coverage/AceRS,eu.sifishome,AceRS.Poller,59,12,4,0,20,4,3,1,1,1
 coverage/AceRS,eu.sifishome,AceRS.ObserveArgs,0,3,0,0,0,1,0,1,0,1
-coverage/AceRS,eu.sifishome.resources,BrightnessResource,43,11,0,0,7,4,2,1,2,1
 coverage/AceRS,eu.sifishome.resources,TempResource,43,11,0,0,7,4,2,1,2,1
+coverage/AceRS,eu.sifishome.resources,BrightnessResource,43,11,0,0,7,4,2,1,2,1
 coverage/AceRS,eu.sifishome.resources,HelloWorldResource,4,8,0,0,2,3,1,1,1,1
 coverage/AceRS,eu.sifishome.resources,VolumeResource,43,11,0,0,7,4,2,1,2,1
 coverage/AceRS,eu.sifishome.resources,HumidityResource,43,11,0,0,7,4,2,1,2,1
@@ -46,8 +46,8 @@ coverage/AceClientDht,eu.sifishome,AceClientDht.PollingArgs,0,3,0,0,0,1,0,1,0,1
 coverage/AceClientDht,eu.sifishome,AceClientDht.Requester,213,44,14,0,44,14,8,2,1,2
 coverage/AceClientDht,eu.sifishome,AceClientDht.Poller,33,15,0,0,9,5,1,1,1,1
 coverage/AceClientDht,eu.sifishome,ExpirationTask,30,0,0,0,10,0,2,0,2,0
-coverage/AceClientDht,eu.sifishome,AceClientDht,810,390,58,28,163,75,46,16,11,8
 coverage/AceClientDht,eu.sifishome,AceClientDht.ObserveArgs,0,3,0,0,0,1,0,1,0,1
+coverage/AceClientDht,eu.sifishome,AceClientDht,810,390,58,28,163,75,46,16,11,8
 coverage/AceClientDht,eu.sifishome,AceClientDht.DhtArgs,6,0,0,0,2,0,1,0,1,0
 coverage/AceClientDht,eu.sifishome,AceClientDht.ClientCoapHandler,14,32,0,0,5,7,1,2,1,2
 coverage/AceClientDht,eu.sifishome,AceClientDht.Args,0,3,0,0,0,1,0,1,0,1
